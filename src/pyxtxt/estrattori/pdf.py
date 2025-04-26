@@ -1,7 +1,24 @@
 from . import register_extractor
+import fitz  # PyMuPDF
+def xtxt_pdf(file_buffer):
+    try:
+        raw_data = file_buffer.read()
+        if not raw_data:
+            print("⚠️  PDF blank or not read correctly")
+            return None
 
-def xtxt_pdf(file_input):
-    return "Testo estratto da PDF"  # Qui ci andrà la vera estrazione
+        doc = fitz.open(stream=raw_data, filetype="pdf")
+        return "\n".join(page.get_text() for page in doc)
+
+    except fitz.EmptyFileError:
+        print("⚠️ Error: PDF is blank or unreadable")
+        return None
+    except Exception as e:
+        print(f"⚠️  Error during PDF extraction: {e}")
+        return None
+
+
+
 
 register_extractor(
     "application/pdf",
