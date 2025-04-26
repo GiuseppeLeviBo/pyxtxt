@@ -21,7 +21,7 @@ def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
         return ""
 
 register_extractor(
-    "application/vnd.ms-excel": xtxt_xls,
+    "application/vnd.ms-excel",
     xtxt_xls,
     name="XLS"
 )

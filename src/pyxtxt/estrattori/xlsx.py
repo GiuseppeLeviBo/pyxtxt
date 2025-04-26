@@ -35,7 +35,7 @@ def xtxt_xlsx(file_buffer, max_rows_per_sheet: int = 200) -> str:
 
     return "\n".join(testo)
 register_extractor(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": xtxt_xlsx,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     xtxt_xlsx,
     name="XLSX"
 )
