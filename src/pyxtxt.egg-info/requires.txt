@@ -1,0 +1,9 @@
+python-docx
+python-pptx
+openpyxl
+odfpy
+beautifulsoup4
+python-magic
+PyMuPDF
+lxml
+xlrd

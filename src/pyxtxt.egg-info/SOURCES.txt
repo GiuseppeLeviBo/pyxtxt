@@ -1,0 +1,10 @@
+LICENCSE
+README.md
+pyproject.toml
+src/pyxtxt/__init__.py
+src/pyxtxt/pyxtxt.py
+src/pyxtxt.egg-info/PKG-INFO
+src/pyxtxt.egg-info/SOURCES.txt
+src/pyxtxt.egg-info/dependency_links.txt
+src/pyxtxt.egg-info/requires.txt
+src/pyxtxt.egg-info/top_level.txt

@@ -1,0 +1,137 @@
+Metadata-Version: 2.4
+Name: pyxtxt
+Version: 0.1.0
+Summary: Una libreria Python per estrarre testo da diversi tipi di file (PDF, DOCX, PPTX, XLSX, ODT, ecc.).
+Author-email: Giuseppe Levi <giuseppe.levi@gmail.com>
+License: MIT License
+        
+        Copyright (c) 2025 Giuseppe Levi
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Requires-Dist: python-docx
+Requires-Dist: python-pptx
+Requires-Dist: openpyxl
+Requires-Dist: odfpy
+Requires-Dist: beautifulsoup4
+Requires-Dist: python-magic
+Requires-Dist: PyMuPDF
+Requires-Dist: lxml
+Requires-Dist: xlrd
+
+# PyxTxt
+
+[![PyPI version](https://img.shields.io/pypi/v/pyxtxt.svg)](https://pypi.org/project/pyxtxt/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pyxtxt.svg)](https://pypi.org/project/pyxtxt/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**PyxTxt** is a simple and powerful Python library to extract text from various file formats.  
+It supports PDF, DOCX, XLSX, PPTX, ODT, HTML, XML, TXT, legacy XLS files, and more.
+
+---
+
+## ✨ Features
+
+- Extracts text from both file paths and in-memory buffers (`io.BytesIO`).
+- Supports multiple formats: PDF, DOCX, PPTX, XLSX, ODT, HTML, XML, TXT, legacy Office files (.xls, .doc, .ppt).
+- Automatically detects MIME type using `python-magic`.
+- Compatible with modern and legacy formats.
+- Can handle streamed content without saving to disk (with some limitations).
+
+---
+
+## 📦 Installation
+
+```bash
+pip install pyxtxt
+```
+## ⚠️ Note: You must have libmagic installed on your system (required by python-magic).
+
+**On Ubuntu/Debian:**
+
+```bash
+sudo apt install libmagic1
+```
+
+**On Mac (Homebrew):**
+
+```bash
+brew install libmagic
+```
+**On Windows:**
+
+Use python-magic-bin instead of python-magic for easier installation.
+
+##🛠️ Dependencies
+- PyMuPDF (fitz)
+
+- beautifulsoup4
+
+- python-docx
+
+- python-pptx
+
+- odfpy
+
+- openpyxl
+
+- lxml
+
+- xlrd (<2.0.0)
+
+- python-magic
+
+Dependencies are automatically installed from pyproject.toml.
+
+##📚 Usage Example
+Extract text from a file path:
+
+```python
+from pyxtxt import estrai_testo
+
+text = estrai_testo("document.pdf")
+print(text)
+```
+Extract text from a file-like buffer:
+
+```python
+import io
+
+with open("document.docx", "rb") as f:
+    buffer = io.BytesIO(f.read())
+
+from pyxtxt import estrai_testo
+text = estrai_testo(buffer)
+print(text)
+```
+##⚠️ Known Limitations
+When passing a raw stream (io.BytesIO) without a filename, legacy files (.doc, .xls, .ppt) may not be correctly detected.
+
+This is a limitation of libmagic, not of pyxtxt.
+
+If available, passing the original filename along with the buffer is highly recommended.
+
+##🔒 License
+Distributed under the MIT License.
+
+The software is provided "as is" without any warranty of any kind.
+
+Pull requests, issues, and feedback are warmly welcome! 🚀
