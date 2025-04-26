@@ -1,1 +1,1 @@
-from .pyxtxt import xtxt, extxt_available_formats
+from .core import xtxt, extxt_available_formats
