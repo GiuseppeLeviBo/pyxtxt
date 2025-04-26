@@ -10,17 +10,17 @@ def xtxt_pdf(file_buffer):
     try:
         raw_data = file_buffer.read()
         if not raw_data:
-            print("⚠️  PDF vuoto o non letto correttamente.")
+            print("⚠️  PDF blank or not read correctly")
             return None
 
         doc = fitz.open(stream=raw_data, filetype="pdf")
         return "\n".join(page.get_text() for page in doc)
 
     except fitz.EmptyFileError:
-        print("⚠️  Errore: il PDF è vuoto o non leggibile.")
+        print("⚠️ Error: PDF is blank or unreadable")
         return None
     except Exception as e:
-        print(f"⚠️  Errore durante l'estrazione del PDF: {e}")
+        print(f"⚠️  Error during PDF extraction: {e}")
         return None
 
 
@@ -33,7 +33,7 @@ def xtxt_docx(file_buffer) -> str:
         buffer_copy = io.BytesIO(data)
 
         if not zipfile.is_zipfile(buffer_copy):
-            print("⚠️  DOCX non valido (non è un file zip)")
+            print("⚠️ Invalid DOCX (not a ZIP file)")
             return ""
 
         buffer_copy.seek(0)
@@ -43,7 +43,7 @@ def xtxt_docx(file_buffer) -> str:
         return text
 
     except Exception as e:
-        print(f"⚠️  Errore durante l'estrazione DOCX : {e}")
+        print(f"⚠️  Error during extraction DOCX: {e}")
         return ""
 
 import zipfile
@@ -57,7 +57,7 @@ def xtxt_pptx(file_buffer) -> str:
         buffer_copy = io.BytesIO(data)
 
         if not zipfile.is_zipfile(buffer_copy):
-            print("⚠️  PPTX non valido (non è un file zip)")
+            print("⚠️  Invalid PPTX (not a ZIP file)" )
             return ""
 
         # Se è un file zip valido, possiamo ripassare i dati a Presentation
@@ -73,7 +73,7 @@ def xtxt_pptx(file_buffer) -> str:
         return text
 
     except Exception as e:
-        print(f"⚠️  Errore durante l'estrazione PPTX : {e}")
+        print(f"⚠️ Error during PPTX extraction: {e}")
         return ""
 
 
@@ -88,13 +88,13 @@ def xtxt_xlsx(file_buffer, max_rows_per_sheet: int = 200) -> str:
         buffer_copy = io.BytesIO(data)
 
         if not zipfile.is_zipfile(buffer_copy):
-            print("⚠️  XLSX non valido (non è un archivio zip)")
+            print("⚠️  Invalid XLSX (not a ZIP archive)")
             return ""
 
         buffer_copy.seek(0)
         wb = openpyxl.load_workbook(buffer_copy, data_only=True, read_only=True)
     except Exception as e:
-        print(f"⚠️ Errore durante la lettura XLSX: {e}")
+        print(f"⚠️ Error while reading XLSX :  {e}")
         return ""
 
     testo = []
@@ -165,7 +165,7 @@ def xtxt_xml(file_buffer) -> str:
         return testo.strip()
 
     except Exception as e:
-        print(f"⚠️ Errore durante l'estrazione XML: {e}")
+        print(f"⚠️ Error while extracting XML : {e}")
         return ""
 import xlrd
 
@@ -186,7 +186,7 @@ def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
         return "\n".join(testo)
 
     except Exception as e:
-        print(f"⚠️ Errore durante l'estrazione XLS: {e}")
+        print(f"⚠️ Error while extracting XLS: {e}")
         return ""
 
 # from pyth.plugins.plaintext.reader import PlaintextReader
@@ -211,7 +211,7 @@ def xtxt_svg(file_buffer):
         texts = [element.text for element in root.findall('.//{http://www.w3.org/2000/svg}text')]
         return "\n".join(texts)
     except Exception as e:
-        print(f"⚠️ Errore durante l'estrazione SVG: {e}")
+        print(f"⚠️ Error while extracting SVG: {e}")
         return ""
 
 from functools import singledispatch
@@ -220,7 +220,7 @@ import magic
 
 @singledispatch
 def xtxt(file_input):
-    raise NotImplementedError(f"Tipo non supportato: {type(file_input)}")
+    raise NotImplementedError(f"Type not supported : {type(file_input)}")
 
 # Caso 1: file path (str)
 @xtxt.register
@@ -233,7 +233,7 @@ def _(file_input: str):
         buffer.mimeType=magic.Magic(mime=True).from_file(file_input)
         return xtxt(buffer)
     except Exception as e:
-        print(f"⚠️ Errore apertura file '{file_input}': {e}")
+        print(f"⚠️ File opening error'{file_input}': {e}")
         return None
 
 # Caso 2: buffer (BytesIO)
@@ -265,19 +265,16 @@ def _(file_input: io.BytesIO):
         print(mime_type)
         if mime_type.startswith("text/"):
             if (mime_type != "text/html") and (mime_type != "text/xml") and (mime_type != "text/plain"):
-               print(f"📄 File di tipo testuale riconosciuto: {mime_type}, trattato come text/plain")
+               print(f"📄 File recognized as text type: {mime_type}, treated as text/plain")
                mime_type = "text/plain"
         if mime_type not in estrattori:
-            print(f"⚠️ MIME type non supportato dopo esportazione: {mime_type} ({file_input.name}) salto.")
+            print(f"⚠️ MIME type not supported {mime_type} ({file_input.name}) ignored.")
             return None
 
 
         # Estrai il testo
         testo = estrattori[mime_type](file_input)
-
-        # Ottieni il percorso completo del file
-        print(f"✅ Testo estratto da {file_input}")
         return f"{testo}"
     except  Exception as e:
-        print(f"❌ Errore durante la lettura: {e}")
+        print(f"❌ Error while reading: {e}")
         return None
