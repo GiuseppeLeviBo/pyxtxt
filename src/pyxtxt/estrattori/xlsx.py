@@ -1,3 +1,5 @@
+import io
+import zipfile
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from . import register_extractor

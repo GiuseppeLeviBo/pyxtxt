@@ -1,4 +1,6 @@
 from . import register_extractor
+import io
+import zipfile
 from docx import Document
 
 def xtxt_docx(file_buffer) -> str:

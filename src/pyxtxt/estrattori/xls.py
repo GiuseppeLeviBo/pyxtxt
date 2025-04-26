@@ -1,3 +1,4 @@
+import io
 from . import register_extractor
 import xlrd
 def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
