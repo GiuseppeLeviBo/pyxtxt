@@ -19,7 +19,7 @@ It supports PDF, DOCX, XLSX, PPTX, ODT, HTML, XML, TXT, legacy XLS files, and mo
 
 ---
 
-## 📦 Installation
+## 📦 Installation (when will be available now in status PRE-ALPHA)
 
 ```bash
 pip install pyxtxt
@@ -83,7 +83,7 @@ from pyxtxt import xtxt
 text = xtxt(buffer)
 print(text)
 ```
-##⚠️ Known Limitations
+## ⚠️ Known Limitations
 When passing a raw stream (io.BytesIO) without a filename, legacy files (.doc, .xls, .ppt) may not be correctly detected.
 
 This is a limitation of libmagic, not of pyxtxt.
