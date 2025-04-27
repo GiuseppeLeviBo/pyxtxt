@@ -1,7 +1,12 @@
 from . import register_extractor
 import io
 import zipfile
-from pptx import Presentation
+try:
+    from pptx import Presentation
+except ImportError:
+    Lib = None
+
+if Lib:
 def xtxt_pptx(file_buffer) -> str:
     try:
         # Convertiamo il file_buffer (che è già un BytesIO o simile) in modo da poterlo riusare

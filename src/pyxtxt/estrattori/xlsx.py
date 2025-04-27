@@ -1,9 +1,14 @@
+from . import register_extractor
 import io
 import zipfile
-from openpyxl import load_workbook
-from openpyxl.worksheet.worksheet import Worksheet
-from . import register_extractor
-import openpyxl
+try:
+    from openpyxl import load_workbook
+    from openpyxl.worksheet.worksheet import Worksheet
+    import openpyxl
+except ImportError:
+    Lib = None
+
+if Lib:
 
 def xtxt_xlsx(file_buffer, max_rows_per_sheet: int = 200) -> str:
     try:

@@ -1,8 +1,12 @@
 from . import register_extractor
 import io
 import zipfile
-from docx import Document
+try:
+    from docx import Document
+except ImportError:
+    Lib = None
 
+if Lib:
 def xtxt_docx(file_buffer) -> str:
     try:
         # Copia del buffer per poterlo riutilizzare

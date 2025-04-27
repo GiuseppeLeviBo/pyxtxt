@@ -1,6 +1,10 @@
 from . import register_extractor
-from lxml import etree
+try:
+    from lxml import etree
+except ImportError:
+    Lib = None
 
+if Lib:
 def xtxt_xml(file_buffer) -> str:
     try:
         file_buffer.seek(0)

@@ -1,6 +1,10 @@
 from . import register_extractor
-from lxml import etree
+try:
+    from lxml import etree
+except ImportError:
+    Lib = None
 
+if Lib:
 def xtxt_svg(file_buffer):
     try:
         tree = etree.parse(file_buffer)

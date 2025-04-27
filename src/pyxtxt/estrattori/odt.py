@@ -1,6 +1,11 @@
 from . import register_extractor
-from odf.opendocument import load
-from odf.text import P
+try:
+    from odf.opendocument import load
+    from odf.text import P
+except ImportError:
+    Lib = None
+
+if Lib:
 def xtxt_odt(file_buffer):
     odt_doc = load(file_buffer)
     paragraphs = odt_doc.getElementsByType(P)

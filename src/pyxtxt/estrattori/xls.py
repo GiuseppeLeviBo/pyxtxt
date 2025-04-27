@@ -1,6 +1,12 @@
 import io
 from . import register_extractor
-import xlrd
+try:
+    import xlrd
+except ImportError:
+    Lib = None
+
+if Lib:
+
 def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
     try:
         file_buffer.seek(0)

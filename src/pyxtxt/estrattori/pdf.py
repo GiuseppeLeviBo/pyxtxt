@@ -1,5 +1,10 @@
 from . import register_extractor
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    Lib = None
+
+if Lib:
 def xtxt_pdf(file_buffer):
     try:
         raw_data = file_buffer.read()
