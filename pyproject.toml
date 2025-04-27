@@ -1,0 +1,58 @@
+[project]
+name = "pyxtxt"
+version = "0.1.9"
+description = "A Python library for extracting text from different types of files (PDF, DOCX, PPTX, XLSX, ODT, ecc.)."
+readme = "README.md"
+requires-python = ">=3.7"
+license = { file = "LICENCSE" }
+authors = [
+  { name = "Giuseppe Levi", email = "giuseppe.levi@gmail.com" }
+]
+dependencies = [
+  "python-magic; sys_platform != 'win32'",
+  "python-magic-bin; sys_platform == 'win32'"
+]
+[project.optional-dependencies]
+pdf = [
+  "PyMuPDF",
+]
+docx = [
+  "python-docx",
+]
+presentation = [
+  "python-pptx",
+]
+spreadsheet = [
+  "openpyxl",
+  "xlrd",
+]
+odf = [
+  "odfpy",
+]
+html = [
+  "beautifulsoup4",
+  "lxml",
+]
+doc = [
+"textract",
+]
+all = [
+  "textract",
+  "PyMuPDF",
+  "python-docx",
+  "python-pptx",
+  "openpyxl",
+  "xlrd",
+  "odfpy",
+  "beautifulsoup4",
+  "lxml",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
