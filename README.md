@@ -12,19 +12,28 @@ It supports PDF, DOCX, XLSX, PPTX, ODT, HTML, XML, TXT, legacy XLS files, and mo
 ## ✨ Features
 
 - Extracts text from both file paths and in-memory buffers (`io.BytesIO`).
-- Supports multiple formats: PDF, DOCX, PPTX, XLSX, ODT, HTML, XML, TXT, legacy Office files (.xls, .doc, .ppt).
+- Supports multiple formats: PDF, DOCX, PPTX, XLSX, ODT, HTML, XML, TXT, legacy Office files (.xls,.ppt).
 - Automatically detects MIME type using `python-magic`.
 - Compatible with modern and legacy formats.
 - Can handle streamed content without saving to disk (with some limitations).
 
 ---
 
-## 📦 Installation (when will be available now in status PRE-ALPHA)
+## 📦 Installation 
+
+The library i modular so you can install all modules:
 
 ```bash
-pip install pyxtxt
+pip install pyxtxt[all]
 ```
+or just the modules you need:
+```bash
+pip install pyxtxt[pdf,odf,docx,presentation,spreadsheet,html]
+```
+Beause needed libraries are common installing the html module will enable also SVG and XML.
+The architecture is designed to be able to grow with new modules to work with other formats as well.
 ## ⚠️ Note: You must have libmagic installed on your system (required by python-magic).
+The pyproject.toml file should select the correct version for your system. But if you have any problem you can install it manually.
 
 **On Ubuntu/Debian:**
 
@@ -83,10 +92,21 @@ from pyxtxt import xtxt
 text = xtxt(buffer)
 print(text)
 ```
+Show available formats:
+from pyxtxt import extxt_available_formats
+```python
+from pyxtxt import extxt_available_formats
+text = extxt_available_formats()
+print(text)
+# For a pretty printing
+text = extxt_available_formats(True)
+print(text)
+```
 ## ⚠️ Known Limitations
 When passing a raw stream (io.BytesIO) without a filename, legacy files (.doc, .xls, .ppt) may not be correctly detected.
 
-This is a limitation of libmagic, not of pyxtxt.
+This is a limitation of libmagic beacuse the signature byte sequence at the start of doc/xls/ppt is exactly the same (b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1'),
+not of pyxtxt.
 
 If available, passing the original filename along with the buffer is highly recommended.
 
