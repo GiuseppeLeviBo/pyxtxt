@@ -108,7 +108,14 @@ When passing a raw stream (io.BytesIO) without a filename, legacy files (.doc, .
 This is a limitation of libmagic beacuse the signature byte sequence at the start of doc/xls/ppt is exactly the same (b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1'),
 not of pyxtxt.
 
-If available, passing the original filename along with the buffer is highly recommended.
+If available, using the original filename is highly recommended.
+
+To extract text from documents in MSWrite's old .doc format, it is necessary to install antiword.
+
+```bash
+sudo apt-get update
+sudo apt-get -y install antiword
+```
 
 ## 🔒 License
 Distributed under the MIT License.
