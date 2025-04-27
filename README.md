@@ -50,7 +50,7 @@ brew install libmagic
 
 Use python-magic-bin instead of python-magic for easier installation.
 
-##🛠️ Dependencies
+## 🛠️ Dependencies
 - PyMuPDF (fitz)
 
 - beautifulsoup4
@@ -71,7 +71,7 @@ Use python-magic-bin instead of python-magic for easier installation.
 
 Dependencies are automatically installed from pyproject.toml.
 
-##📚 Usage Example
+## 📚 Usage Example
 Extract text from a file path:
 
 ```python
@@ -110,7 +110,7 @@ not of pyxtxt.
 
 If available, passing the original filename along with the buffer is highly recommended.
 
-##🔒 License
+## 🔒 License
 Distributed under the MIT License.
 
 The software is provided "as is" without any warranty of any kind.
