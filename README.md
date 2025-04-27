@@ -69,7 +69,9 @@ Use python-magic-bin instead of python-magic for easier installation.
 
 - python-magic
 
-Dependencies are automatically installed from pyproject.toml.
+- textract ( with separate antiword executable installation )
+
+Python dependencies are automatically installed from pyproject.toml.
 
 ## 📚 Usage Example
 Extract text from a file path:
@@ -116,6 +118,8 @@ To extract text from documents in MSWrite's old .doc format, it is necessary to 
 sudo apt-get update
 sudo apt-get -y install antiword
 ```
+
+MacOs and Windows versions of antiword are also available.
 
 ## 🔒 License
 Distributed under the MIT License.

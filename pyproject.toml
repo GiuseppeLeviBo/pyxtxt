@@ -1,13 +1,19 @@
 [project]
 name = "pyxtxt"
-version = "0.1.9"
+version = "0.1.10"
 description = "A Python library for extracting text from different types of files (PDF, DOCX, PPTX, XLSX, ODT, ecc.)."
 readme = "README.md"
 requires-python = ">=3.7"
-license = { file = "LICENCSE" }
+license = { file = "LICENSE" }
 authors = [
   { name = "Giuseppe Levi", email = "giuseppe.levi@gmail.com" }
 ]
+
+urls = { 
+ "GitHub": "https://github.com/GiuseppeLeviBo/pyxtxt",
+ "PyPI": "https://pypi.org/project/pyxtxt/"
+}
+
 dependencies = [
   "python-magic; sys_platform != 'win32'",
   "python-magic-bin; sys_platform == 'win32'"
