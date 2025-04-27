@@ -6,7 +6,7 @@ from odf.opendocument import load
 from odf.text import P
 import openpyxl
 
-def xtxt_pdf(file_buffer):
+def xtxt_pdf(file_buffer): #fatto
     try:
         raw_data = file_buffer.read()
         if not raw_data:
@@ -25,7 +25,7 @@ def xtxt_pdf(file_buffer):
 
 
 
-def xtxt_docx(file_buffer) -> str:
+def xtxt_docx(file_buffer) -> str: #fatto
     try:
         # Copia del buffer per poterlo riutilizzare
         file_buffer.seek(0)
