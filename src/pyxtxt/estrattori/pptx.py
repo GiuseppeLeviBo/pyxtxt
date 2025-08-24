@@ -4,10 +4,10 @@ import zipfile
 try:
     from pptx import Presentation
 except ImportError:
-    Lib = None
+    Presentation = None
 
-if Lib:
-def xtxt_pptx(file_buffer) -> str:
+if Presentation:
+ def xtxt_pptx(file_buffer) -> str:
     try:
         # Convertiamo il file_buffer (che è già un BytesIO o simile) in modo da poterlo riusare
         file_buffer.seek(0)
@@ -33,7 +33,7 @@ def xtxt_pptx(file_buffer) -> str:
     except Exception as e:
         print(f"⚠️ Error during PPTX extraction: {e}")
         return ""
-register_extractor(
+ register_extractor(
     "application/vnd.openxmlformats-officedocument.presentationml.presentation" ,
     xtxt_pptx,
     name="PPTX"

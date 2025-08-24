@@ -6,11 +6,11 @@ try:
     from openpyxl.worksheet.worksheet import Worksheet
     import openpyxl
 except ImportError:
-    Lib = None
+    openpyxl = None
 
-if Lib:
+if openpyxl:
 
-def xtxt_xlsx(file_buffer, max_rows_per_sheet: int = 200) -> str:
+ def xtxt_xlsx(file_buffer, max_rows_per_sheet: int = 200) -> str:
     try:
         file_buffer.seek(0)
         data = file_buffer.read()
@@ -41,10 +41,11 @@ def xtxt_xlsx(file_buffer, max_rows_per_sheet: int = 200) -> str:
                 count += 1
 
     return "\n".join(testo)
-register_extractor(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+ register_extractor(
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     xtxt_xlsx,
     name="XLSX"
-)
+ )
 
 

@@ -3,11 +3,11 @@ from . import register_extractor
 try:
     import xlrd
 except ImportError:
-    Lib = None
+    xlrd = None
 
-if Lib:
+if xlrd:
 
-def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
+ def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
     try:
         file_buffer.seek(0)
         workbook = xlrd.open_workbook(file_contents=file_buffer.read())
@@ -27,7 +27,7 @@ def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
         print(f"⚠️ Error while extracting XLS: {e}")
         return ""
 
-register_extractor(
+ register_extractor(
     "application/vnd.ms-excel",
     xtxt_xls,
     name="XLS"

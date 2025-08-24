@@ -1,19 +1,29 @@
 [project]
 name = "pyxtxt"
-version = "0.1.10"
+version = "0.3.5"
 description = "A Python library for extracting text from different types of files (PDF, DOCX, PPTX, XLSX, ODT, ecc.)."
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Text Processing",
+  "Topic :: Utilities"
+]
+
 readme = "README.md"
 requires-python = ">=3.7"
+
 license = { file = "LICENSE" }
 authors = [
   { name = "Giuseppe Levi", email = "giuseppe.levi@gmail.com" }
 ]
-
-urls = { 
- "GitHub": "https://github.com/GiuseppeLeviBo/pyxtxt",
- "PyPI": "https://pypi.org/project/pyxtxt/"
-}
-
 dependencies = [
   "python-magic; sys_platform != 'win32'",
   "python-magic-bin; sys_platform == 'win32'"
@@ -40,10 +50,40 @@ html = [
   "lxml",
 ]
 doc = [
-"textract",
+]
+markdown = [
+  "markdown",
+  "beautifulsoup4",
+]
+epub = [
+  "ebooklib", 
+  "beautifulsoup4",
+]
+rtf = [
+  "striprtf",
+]
+email = [
+  "beautifulsoup4",
+]
+outlook = [
+  "extract-msg",
+  "beautifulsoup4",
+]
+latex = [
+  "pylatexenc",
+]
+audio = [
+  "openai-whisper",
+]
+ocr = [
+  "easyocr",
+  "pillow",
+]
+ocr-ollama = [
+  "ollama",
+  "pillow",
 ]
 all = [
-  "textract",
   "PyMuPDF",
   "python-docx",
   "python-pptx",
@@ -52,6 +92,15 @@ all = [
   "odfpy",
   "beautifulsoup4",
   "lxml",
+  "markdown",
+  "ebooklib",
+  "striprtf",
+  "extract-msg",
+  "pylatexenc",
+  "openai-whisper",
+  "easyocr",
+  "pillow",
+  "ollama",
 ]
 
 [build-system]
@@ -61,4 +110,10 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["examples.py"]
 

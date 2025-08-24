@@ -2,10 +2,10 @@ from . import register_extractor
 try:
     from lxml import etree
 except ImportError:
-    Lib = None
+    etree = None
 
-if Lib:
-def xtxt_xml(file_buffer) -> str:
+if etree:
+ def xtxt_xml(file_buffer) -> str:
     try:
         file_buffer.seek(0)
         parser = etree.XMLParser(recover=True)
@@ -29,12 +29,12 @@ def xtxt_xml(file_buffer) -> str:
     except Exception as e:
         print(f"⚠️ Error while extracting XML : {e}")
         return ""
-register_extractor(
+ register_extractor(
     "application/xml",
     xtxt_xml,
     name="XML"
 )
-register_extractor(
+ register_extractor(
     "text/xml",
     xtxt_xml,
     name="XML"

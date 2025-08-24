@@ -4,10 +4,10 @@ import zipfile
 try:
     from docx import Document
 except ImportError:
-    Lib = None
+    Document = None
 
-if Lib:
-def xtxt_docx(file_buffer) -> str:
+if Document:
+ def xtxt_docx(file_buffer) -> str:
     try:
         # Copia del buffer per poterlo riutilizzare
         file_buffer.seek(0)
@@ -28,7 +28,7 @@ def xtxt_docx(file_buffer) -> str:
         print(f"⚠️  Error during extraction DOCX: {e}")
         return ""
 
-register_extractor(
+ register_extractor(
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     xtxt_docx,
     name="DOCX"

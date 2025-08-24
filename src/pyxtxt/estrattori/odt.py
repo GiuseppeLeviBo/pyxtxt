@@ -3,10 +3,10 @@ try:
     from odf.opendocument import load
     from odf.text import P
 except ImportError:
-    Lib = None
+    load = None
 
-if Lib:
-def xtxt_odt(file_buffer):
+if load:
+ def xtxt_odt(file_buffer):
     odt_doc = load(file_buffer)
     paragraphs = odt_doc.getElementsByType(P)
     
@@ -20,7 +20,7 @@ def xtxt_odt(file_buffer):
             testo.append("".join(contenuto))
     
     return "\n".join(testo)
-register_extractor(
+ register_extractor(
      "application/vnd.oasis.opendocument.text",
      xtxt_odt,
     name="ODT"

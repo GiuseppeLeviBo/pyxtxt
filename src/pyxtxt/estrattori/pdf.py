@@ -2,10 +2,10 @@ from . import register_extractor
 try:
     import fitz  # PyMuPDF
 except ImportError:
-    Lib = None
+    fitz = None
 
-if Lib:
-def xtxt_pdf(file_buffer):
+if fitz:
+ def xtxt_pdf(file_buffer):
     try:
         raw_data = file_buffer.read()
         if not raw_data:
@@ -25,7 +25,7 @@ def xtxt_pdf(file_buffer):
 
 
 
-register_extractor(
+ register_extractor(
     "application/pdf",
     xtxt_pdf,
     name="PDF"

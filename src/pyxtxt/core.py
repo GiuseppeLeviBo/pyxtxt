@@ -2,6 +2,8 @@ from .estrattori import estrattori
 from functools import singledispatch
 import io
 import magic
+from typing import Union, Optional
+from urllib.parse import urlparse
 
 @singledispatch
 def xtxt(file_input):
@@ -9,7 +11,7 @@ def xtxt(file_input):
 
 # Caso 1: file path (str)
 @xtxt.register
-def _(file_input: str):
+def _(file_input: str) -> Optional[str]:
     try:
         with open(file_input, "rb") as f:
             data = f.read()
@@ -23,7 +25,7 @@ def _(file_input: str):
 
 # Caso 2: buffer (BytesIO)
 @xtxt.register
-def _(file_input: io.BytesIO):
+def _(file_input: io.BytesIO) -> Optional[str]:
     try:
 
 
@@ -47,7 +49,6 @@ def _(file_input: io.BytesIO):
             mime_type = magic.Magic(mime=True).from_buffer(file_input.read(2048))
             file_input.name='IO_buffer'
             file_input.seek(0)
-        print(mime_type)
         if mime_type.startswith("text/"):
             if (mime_type != "text/html") and (mime_type != "text/xml") and (mime_type != "text/plain"):
                print(f"📄 File recognized as text type: {mime_type}, treated as text/plain")
@@ -63,6 +64,59 @@ def _(file_input: io.BytesIO):
     except  Exception as e:
         print(f"❌ Error while reading: {e}")
         return None
+
+# Caso 3: bytes object
+@xtxt.register
+def _(file_input: bytes) -> Optional[str]:
+    """Estrae testo da oggetto bytes (es. da download web)"""
+    try:
+        buffer = io.BytesIO(file_input)
+        buffer.name = 'bytes_input'
+        mime_type = magic.Magic(mime=True).from_buffer(file_input[:2048])
+        buffer.mimeType = mime_type
+        return xtxt(buffer)
+    except Exception as e:
+        print(f"❌ Error processing bytes: {e}")
+        return None
+
+# Supporto per requests.Response (se disponibile)
+try:
+    import requests
+    
+    @xtxt.register
+    def _(file_input: requests.Response) -> Optional[str]:
+        """Estrae testo da requests.Response object"""
+        try:
+            return xtxt(file_input.content)
+        except Exception as e:
+            print(f"❌ Error processing Response: {e}")
+            return None
+except ImportError:
+    # requests non installato, skip registrazione
+    pass
+
+def xtxt_from_url(url: str, **kwargs) -> Optional[str]:
+    """Scarica contenuto da URL e ne estrae il testo
+    
+    Args:
+        url: URL del documento da processare  
+        **kwargs: Parametri aggiuntivi per requests.get()
+        
+    Returns:
+        str: Testo estratto o None se errore
+    """
+    try:
+        import requests
+        response = requests.get(url, **kwargs)
+        response.raise_for_status()
+        return xtxt(response.content)
+    except ImportError:
+        print("❌ requests library not installed. Install with: pip install requests")
+        return None
+    except Exception as e:
+        print(f"❌ Error downloading from URL {url}: {e}")
+        return None
+
 def extxt_available_formats(pretty=False):
     if pretty:
         from .estrattori import pretty_names
