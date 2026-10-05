@@ -64,6 +64,8 @@ print(extxt_available_formats(pretty=True))  # Short names
 
 ## 📦 Installation
 
+PyxTxt requires Python 3.10 or newer.
+
 Install every extractor (this includes the heavy audio and OCR dependencies):
 
 ```bash
@@ -289,7 +291,7 @@ pip install -e ".[pdf,docx,presentation,spreadsheet,odf,html,markdown,epub,rtf,e
 pytest
 ```
 
-Tests for formats whose libraries are not installed are skipped. CI runs the test suite on Python 3.10–3.13.
+Tests for formats whose libraries are not installed are skipped. CI runs the test suite on Python 3.10–3.14.
 
 ### Releasing
 
@@ -321,6 +323,10 @@ Pull requests, issues and feedback are welcome.
 ---
 
 ## 📊 Changelog
+
+### v0.3.7
+- Python 3.10 or newer is now required; metadata no longer lists the end-of-life versions 3.7–3.9, which were never tested
+- Python 3.14 is tested in CI and declared as supported
 
 ### v0.3.6
 - **FIXED**: `import pyxtxt` crashed with `AttributeError` unless both `ollama` and Pillow were installed (regression in 0.3.4.2 and 0.3.5)
