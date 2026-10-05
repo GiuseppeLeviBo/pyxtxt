@@ -1,7 +1,6 @@
 # pyxtxt/extractors/image_exif.py
-from . import register_extractor
 from io import BytesIO
-import json
+import numbers
 
 try:
     from PIL import Image, ExifTags
@@ -13,6 +12,27 @@ except ImportError:
     GPSTAGS = None
 
 if Image and ExifTags and TAGS:
+    _EXIF_IFD = 0x8769  # ExifOffset: pointer to camera settings (FNumber, ExposureTime, ...)
+    _GPS_IFD = 0x8825   # GPSInfo: pointer to GPS data
+
+    def _as_ratio(value):
+        """Return (numerator, denominator) for EXIF rationals, or None.
+
+        Older Pillow versions return tuples, newer ones IFDRational objects.
+        """
+        if isinstance(value, tuple) and len(value) == 2:
+            return value
+        if isinstance(value, numbers.Rational) or hasattr(value, "denominator"):
+            return value.numerator, value.denominator
+        return None
+
+    def _collect_exif(image):
+        """Return (tags, gps) dictionaries keyed by numeric tag id."""
+        exif = image.getexif()
+        tags = {tag_id: value for tag_id, value in exif.items() if tag_id not in (_EXIF_IFD, _GPS_IFD)}
+        tags.update(exif.get_ifd(_EXIF_IFD))
+        return tags, dict(exif.get_ifd(_GPS_IFD))
+
     def xtxt_image_exif(file_buffer):
         """
         Extract EXIF metadata from images as human-readable text.
@@ -32,23 +52,19 @@ if Image and ExifTags and TAGS:
             image = Image.open(BytesIO(image_data))
             
             # Get EXIF data
-            exif_data = image._getexif()
+            exif_data, gps_data = _collect_exif(image)
             
-            if not exif_data:
+            if not exif_data and not gps_data:
                 return "NO_EXIF_DATA_FOUND"
             
             # Extract readable EXIF information
             exif_text_lines = []
-            gps_data = {}
             
             # Process main EXIF tags
             for tag_id, value in exif_data.items():
                 tag_name = TAGS.get(tag_id, f"UnknownTag_{tag_id}")
-                
-                # Handle special GPS data
-                if tag_name == "GPSInfo" and isinstance(value, dict):
-                    gps_data = value
-                    continue
+                if isinstance(value, str):
+                    value = value.strip("\x00 ")
                 
                 # Format common values
                 if tag_name in ["DateTime", "DateTimeOriginal", "DateTimeDigitized"]:
@@ -56,28 +72,27 @@ if Image and ExifTags and TAGS:
                 elif tag_name in ["Make", "Model", "Software", "Artist", "Copyright"]:
                     exif_text_lines.append(f"{tag_name}: {value}")
                 elif tag_name in ["XResolution", "YResolution"]:
-                    if isinstance(value, tuple) and len(value) == 2:
-                        resolution = value[0] / value[1] if value[1] != 0 else value[0]
-                        exif_text_lines.append(f"{tag_name}: {resolution:.1f} dpi")
+                    ratio = _as_ratio(value)
+                    if ratio and ratio[1] != 0:
+                        exif_text_lines.append(f"{tag_name}: {ratio[0] / ratio[1]:.1f} dpi")
                     else:
                         exif_text_lines.append(f"{tag_name}: {value}")
                 elif tag_name in ["FNumber", "FocalLength", "ExposureTime"]:
-                    if isinstance(value, tuple) and len(value) == 2:
-                        if value[1] != 0:
-                            if tag_name == "FNumber":
-                                f_value = value[0] / value[1]
-                                exif_text_lines.append(f"Aperture: f/{f_value:.1f}")
-                            elif tag_name == "FocalLength":
-                                focal_mm = value[0] / value[1]
-                                exif_text_lines.append(f"Focal Length: {focal_mm:.0f}mm")
-                            elif tag_name == "ExposureTime":
-                                if value[0] == 1:
-                                    exif_text_lines.append(f"Shutter Speed: 1/{value[1]}s")
-                                else:
-                                    exp_time = value[0] / value[1]
-                                    exif_text_lines.append(f"Shutter Speed: {exp_time:.3f}s")
+                    ratio = _as_ratio(value)
+                    if ratio and ratio[1] != 0:
+                        numerator, denominator = ratio
+                        if tag_name == "FNumber":
+                            exif_text_lines.append(f"Aperture: f/{numerator / denominator:.1f}")
+                        elif tag_name == "FocalLength":
+                            exif_text_lines.append(f"Focal Length: {numerator / denominator:.0f}mm")
+                        elif numerator == 1:
+                            exif_text_lines.append(f"Shutter Speed: 1/{denominator}s")
                         else:
-                            exif_text_lines.append(f"{tag_name}: {value}")
+                            exp_time = numerator / denominator
+                            if exp_time < 1:
+                                exif_text_lines.append(f"Shutter Speed: 1/{round(1 / exp_time)}s")
+                            else:
+                                exif_text_lines.append(f"Shutter Speed: {exp_time:g}s")
                     else:
                         exif_text_lines.append(f"{tag_name}: {value}")
                 elif tag_name == "ISOSpeedRatings":
@@ -111,8 +126,10 @@ if Image and ExifTags and TAGS:
                     }
                     orient_desc = orientations.get(value, f"Orientation {value}")
                     exif_text_lines.append(f"Orientation: {orient_desc}")
-                elif isinstance(value, (str, int, float)):
-                    # Include other simple values
+                elif isinstance(value, (str, numbers.Number)):
+                    # Include other simple values (rationals as decimals)
+                    if not isinstance(value, (str, int)):
+                        value = round(float(value), 4)
                     exif_text_lines.append(f"{tag_name}: {value}")
             
             # Process GPS data if available
@@ -130,7 +147,7 @@ if Image and ExifTags and TAGS:
                     lat_dms = gps_info['GPSLatitude']
                     lat_ref = gps_info['GPSLatitudeRef']
                     if len(lat_dms) == 3:
-                        lat_deg = lat_dms[0] + lat_dms[1]/60 + lat_dms[2]/3600
+                        lat_deg = float(lat_dms[0]) + float(lat_dms[1])/60 + float(lat_dms[2])/3600
                         if lat_ref == 'S':
                             lat_deg = -lat_deg
                         gps_text_lines.append(f"GPS Latitude: {lat_deg:.6f}° {lat_ref}")
@@ -139,7 +156,7 @@ if Image and ExifTags and TAGS:
                     lon_dms = gps_info['GPSLongitude']
                     lon_ref = gps_info['GPSLongitudeRef']
                     if len(lon_dms) == 3:
-                        lon_deg = lon_dms[0] + lon_dms[1]/60 + lon_dms[2]/3600
+                        lon_deg = float(lon_dms[0]) + float(lon_dms[1])/60 + float(lon_dms[2])/3600
                         if lon_ref == 'W':
                             lon_deg = -lon_deg
                         gps_text_lines.append(f"GPS Longitude: {lon_deg:.6f}° {lon_ref}")
@@ -172,12 +189,5 @@ if Image and ExifTags and TAGS:
         except Exception as e:
             print(f"⚠️ Error extracting EXIF from image: {e}")
             return ""
-    
-    # Register EXIF extractor for image formats with dedicated MIME types
-    # Using EXIF-specific MIME types to avoid conflicts with OCR extractors
-    register_extractor("image/jpeg+exif", xtxt_image_exif, name="EXIF")
-    register_extractor("image/jpg+exif", xtxt_image_exif, name="EXIF") 
-    register_extractor("image/png+exif", xtxt_image_exif, name="EXIF")
-    register_extractor("image/tiff+exif", xtxt_image_exif, name="EXIF")
-    register_extractor("image/bmp+exif", xtxt_image_exif, name="EXIF")
-    register_extractor("image/webp+exif", xtxt_image_exif, name="EXIF")
+
+    # EXIF metadata is exposed through pyxtxt.xtxt_exif(): xtxt() on an image runs OCR.

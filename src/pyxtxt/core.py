@@ -17,6 +17,15 @@ _TEXT_EXTENSION_HINTS = {
 }
 
 
+def _detect_mime_type(data: bytes) -> str:
+    """Detect the MIME type of in-memory data.
+
+    The whole buffer is passed to libmagic: the first few KB are not always
+    enough to tell apart ZIP-based formats (e.g. XLSX is seen as application/zip).
+    """
+    return magic.from_buffer(data, mime=True)
+
+
 def _resolve_mime_type(mime_type: str, name: Optional[str]) -> str:
     """Refine the detected MIME type and map unknown text types to text/plain."""
     if mime_type == "text/plain" and name:
@@ -45,7 +54,7 @@ def _(file_input: str) -> Optional[str]:
             data = f.read()
         buffer = io.BytesIO(data)
         buffer.name = file_input
-        buffer.mimeType = magic.Magic(mime=True).from_file(file_input)
+        buffer.mimeType = magic.from_file(file_input, mime=True)
         return xtxt(buffer)
     except Exception as e:
         print(f"⚠️ File opening error '{file_input}': {e}")
@@ -59,8 +68,7 @@ def _(file_input: io.BytesIO) -> Optional[str]:
         if hasattr(file_input, "mimeType"):
             mime_type = file_input.mimeType
         else:
-            file_input.seek(0)
-            mime_type = magic.Magic(mime=True).from_buffer(file_input.read(2048))
+            mime_type = _detect_mime_type(file_input.getvalue())
             file_input.seek(0)
         if not getattr(file_input, "name", None):
             file_input.name = "IO_buffer"
@@ -83,10 +91,28 @@ def _(file_input: bytes) -> Optional[str]:
     try:
         buffer = io.BytesIO(file_input)
         buffer.name = "bytes_input"
-        buffer.mimeType = magic.Magic(mime=True).from_buffer(file_input[:2048])
+        buffer.mimeType = _detect_mime_type(file_input)
         return xtxt(buffer)
     except Exception as e:
         print(f"❌ Error processing bytes: {e}")
+        return None
+
+
+@xtxt.register
+def _(file_input: io.IOBase) -> Optional[str]:
+    """Extract text from a binary file object, e.g. one returned by open(path, "rb")."""
+    try:
+        data = file_input.read()
+        if isinstance(data, str):
+            print("⚠️ File object opened in text mode: open it in binary mode ('rb')")
+            return None
+        buffer = io.BytesIO(data)
+        name = getattr(file_input, "name", None)
+        buffer.name = name if isinstance(name, str) else "file_object"
+        buffer.mimeType = _detect_mime_type(data)
+        return xtxt(buffer)
+    except Exception as e:
+        print(f"❌ Error processing file object: {e}")
         return None
 
 

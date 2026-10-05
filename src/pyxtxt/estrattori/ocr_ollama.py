@@ -6,6 +6,7 @@ from __future__ import annotations
 from . import register_extractor
 from io import BytesIO
 import base64
+import re
 
 try:
     import ollama
@@ -285,12 +286,16 @@ def _enhance_image(image: Image.Image, context: str, min_size: int, max_size: in
     
     return enhanced
 
-def _try_ollama_request(prompt: str, img_base64: str, current_model: str, config: dict) -> tuple:
+def _try_ollama_request(prompt: str, img_base64: str, current_model: str, config: dict, mode: str) -> tuple:
     """
     Attempt Ollama request with a specific model.
     
     Returns:
         tuple: (success: bool, response: str, confidence: float)
+
+    Raises:
+        ConnectionError: when the Ollama server is not reachable, since trying
+        other models would fail the same way.
     """
     try:
         print(f"🤖 Trying model: {current_model}")
@@ -309,10 +314,12 @@ def _try_ollama_request(prompt: str, img_base64: str, current_model: str, config
         extracted_content = response.get('response', '').strip()
         
         # Calculate confidence without printing warnings here (let parent handle it)
-        confidence_score = _calculate_confidence_score(extracted_content, "ocr" if "Extracted text:" in prompt else "describe")
+        confidence_score = _calculate_confidence_score(extracted_content, mode)
         
         return True, extracted_content, confidence_score
         
+    except ConnectionError:
+        raise
     except Exception as e:
         print(f"❌ Model {current_model} failed: {e}")
         return False, "", 0.0
@@ -429,16 +436,16 @@ def _calculate_confidence_score(content: str, mode: str) -> float:
         ("error error", 0.15, "Error message hallucination"),
     ]
     
-    import re
-    
     # Apply positive pattern scoring
     for pattern, bonus, description in positive_patterns:
         if re.search(pattern, content_lower):
             score += bonus
     
-    # Apply negative pattern scoring  
+    # Apply negative pattern scoring.
+    # Keywords match whole words (plus common suffixes), so that e.g. "roman"
+    # does not fire on "romance" while "egypt" still matches "egyptian".
     for pattern, penalty, description in negative_patterns:
-        if pattern in content_lower:
+        if re.search(r"\b" + re.escape(pattern) + r"(?:s|es|ian|ians|ic)?\b", content_lower):
             score -= penalty
             print(f"⚠️ Confidence penalty ({penalty}): {description}")
     
@@ -468,54 +475,18 @@ def _calculate_confidence_score(content: str, mode: str) -> float:
     # Clamp to valid range
     return max(0.0, min(1.0, score))
 
-if ollama and Image:
-    def xtxt_image_ocr_ollama(file_buffer, mode="ocr", model=None):
-        """
-        Extract text from images using Ollama with multimodal models.
-        
-        Args:
-            file_buffer: Image file buffer
-            mode: "ocr" (text only) or "describe" (text + description)  
-            model: Override default model (optional)
-        """
-        try:
-            # Use specified model or global default
-            current_model = model or OLLAMA_MODEL
-            
-            # Convert buffer to PIL Image
-            # Reset buffer position if it has read method
-            if hasattr(file_buffer, 'seek'):
-                file_buffer.seek(0)
-            image_data = file_buffer.read()
-            image = Image.open(BytesIO(image_data))
-            
-            # Convert to RGB if needed
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            
-            # Get current configuration
-            config = OLLAMA_CONFIG
-            
-            # Apply image enhancement if enabled
-            if config.get('enhance_image', True):
-                print("⚡ Enhancing image for better OCR...")
-                image = _enhance_image(image, config['context'], config['min_size'], config['max_size'])
-            
-            # Convert image to base64
-            buffered = BytesIO()
-            image.save(buffered, format="PNG")
-            img_base64 = base64.b64encode(buffered.getvalue()).decode()
-            
-            # Build language hint
-            lang_hint = ""
-            if config['language'] != 'auto':
-                lang_hint = f"Text language: {config['language']}. "
-            
-            # Different prompts based on mode
-            if mode == "ocr":
-                # Context-specific OCR prompts
-                if config.get('context') == 'xray':
-                    prompt = f"""This is a medical X-ray or radiological image. Look carefully and extract ALL visible text, including:
+def _build_prompt(mode: str, config: dict) -> str:
+    """Build the prompt for "ocr" (text only) or "describe" (text + description) mode."""
+    # Build language hint
+    lang_hint = ""
+    if config['language'] != 'auto':
+        lang_hint = f"Text language: {config['language']}. "
+
+    # Different prompts based on mode
+    if mode == "ocr":
+        # Context-specific OCR prompts
+        if config.get('context') == 'xray':
+            prompt = f"""This is a medical X-ray or radiological image. Look carefully and extract ALL visible text, including:
 - Patient identification numbers, names, or codes
 - Date and time stamps (exam dates, birth dates)
 - Anatomical position markers (L/R, LEFT/RIGHT, AP, LAT)
@@ -531,8 +502,8 @@ IMPORTANT:
 - If absolutely no readable text is visible, respond with 'NO_TEXT_FOUND'
 
 Extracted text:"""
-                elif config.get('context') == 'medical':
-                    prompt = f"""This appears to be a medical document or image. Look carefully and extract ALL text, including:
+        elif config.get('context') == 'medical':
+            prompt = f"""This appears to be a medical document or image. Look carefully and extract ALL text, including:
 - Patient information (names, IDs, dates of birth)
 - Medical terminology and diagnostic information
 - Dates, times, and timestamps
@@ -547,9 +518,9 @@ IMPORTANT:
 - If no readable text is found, respond with 'NO_TEXT_FOUND'
 
 Extracted text:"""
-                else:
-                    # General OCR prompt
-                    prompt = f"""Look carefully at this image and extract ALL text that you can see, including:
+        else:
+            # General OCR prompt
+            prompt = f"""Look carefully at this image and extract ALL text that you can see, including:
 - Titles, headings, and main text content  
 - Small print, captions, labels, and annotations
 - Numbers, measurements, quantities, and symbols
@@ -563,58 +534,58 @@ IMPORTANT:
 - If you cannot find any readable text at all, respond with 'NO_TEXT_FOUND'
 
 Extracted text:"""
-            
-            else:  # mode == "describe"
-                # Build style-specific prompts
-                style_prompts = {
-                    'descriptive': "Provide a clear, descriptive explanation",
-                    'technical': "Use technical terminology and precise descriptions", 
-                    'simple': "Use simple, easy-to-understand language",
-                    'detailed': "Provide comprehensive details about all visual elements"
-                }
-                
-                length_hints = {
-                    'short': "Keep descriptions brief (1-2 sentences)",
-                    'medium': "Provide moderate detail (2-4 sentences)",
-                    'long': "Give comprehensive descriptions (4-8 sentences)"
-                }
-                
-                style_instruction = style_prompts.get(config['style'], style_prompts['descriptive'])
-                length_instruction = length_hints.get(config['caption_length'], length_hints['medium'])
-                
-                # Context-specific hints (only when explicitly set)
-                context_hint = ""
-                context = config.get('context', 'general').lower()
-                if context == 'cookbook' or context == 'recipe':
-                    context_hint = """
+
+    else:  # mode == "describe"
+        # Build style-specific prompts
+        style_prompts = {
+            'descriptive': "Provide a clear, descriptive explanation",
+            'technical': "Use technical terminology and precise descriptions", 
+            'simple': "Use simple, easy-to-understand language",
+            'detailed': "Provide comprehensive details about all visual elements"
+        }
+
+        length_hints = {
+            'short': "Keep descriptions brief (1-2 sentences)",
+            'medium': "Provide moderate detail (2-4 sentences)",
+            'long': "Give comprehensive descriptions (4-8 sentences)"
+        }
+
+        style_instruction = style_prompts.get(config['style'], style_prompts['descriptive'])
+        length_instruction = length_hints.get(config['caption_length'], length_hints['medium'])
+
+        # Context-specific hints (only when explicitly set)
+        context_hint = ""
+        context = config.get('context', 'general').lower()
+        if context == 'cookbook' or context == 'recipe':
+            context_hint = """
    - If this appears to be a recipe/cookbook page, include: ingredients, cooking steps, quantities, cooking times
    - Mention any photos of prepared dishes or cooking techniques shown
    - Note any special formatting like ingredient lists, step numbers, or cooking tips"""
-                elif context == 'document':
-                    context_hint = """
+        elif context == 'document':
+            context_hint = """
    - Focus on document structure: headers, paragraphs, sections, page numbers
    - Note any official formatting, letterheads, signatures, or stamps"""
-                elif context == 'handwriting' or context == 'notes':
-                    context_hint = """
+        elif context == 'handwriting' or context == 'notes':
+            context_hint = """
    - Pay special attention to handwritten text which may be harder to read
    - Note any sketches, diagrams, or informal formatting typical of personal notes"""
-                elif context == 'technical' or context == 'diagram':
-                    context_hint = """
+        elif context == 'technical' or context == 'diagram':
+            context_hint = """
    - Focus on technical elements: labels, measurements, specifications, diagrams
    - Include any mathematical formulas, technical symbols, or engineering notations"""
-                elif context == 'medical':
-                    context_hint = """
+        elif context == 'medical':
+            context_hint = """
    - Focus on medical content: patient data, measurements, anatomical labels, medical terminology
    - Look for dates, patient IDs, measurement values, diagnostic information
    - Note any visible text on medical equipment or instrumentation"""
-                elif context == 'xray':
-                    context_hint = """
+        elif context == 'xray':
+            context_hint = """
    - This appears to be a medical X-ray or radiological image
    - Look for: anatomical markers, measurement scales, patient information, timestamps
    - Focus on any visible text annotations, labels, or technical markings
    - Note positioning indicators (L/R, anterior/posterior) or measurement rulers"""
 
-                prompt = f"""Analyze this image and provide:
+        prompt = f"""Analyze this image and provide:
 1. All visible text exactly as written (preserve formatting, line breaks, bullet points)
 2. Image description following these guidelines:
    - {style_instruction}
@@ -624,32 +595,84 @@ Extracted text:"""
 Format:
 TEXT: [all visible text here, or NO_TEXT_FOUND if none]
 DESCRIPTION: [image description following the guidelines above]"""
+
+    return prompt
+
+def _image_to_base64(file_buffer, config: dict) -> str:
+    """Load the image, apply the configured enhancement and encode it as base64 PNG."""
+    # Reset buffer position if it has read method
+    if hasattr(file_buffer, 'seek'):
+        file_buffer.seek(0)
+    image = Image.open(BytesIO(file_buffer.read()))
+    
+    # Convert to RGB if needed
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    # Apply image enhancement if enabled
+    if config.get('enhance_image', True):
+        print("⚡ Enhancing image for better OCR...")
+        image = _enhance_image(image, config['context'], config['min_size'], config['max_size'])
+    
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
+def _generate_with_fallback(prompt: str, img_base64: str, current_model: str, config: dict, mode: str) -> tuple:
+    """
+    Query the primary model and, if its result is poor, the fallback models.
+    
+    Returns:
+        tuple: (extracted_text, confidence_score) of the best result
+    """
+    try:
+        success, extracted_content, confidence_score = _try_ollama_request(prompt, img_base64, current_model, config, mode)
+        
+        # If primary model failed or confidence is very low, try fallback models
+        if config.get('auto_fallback', True) and (not success or confidence_score < 0.3):
+            print("🔄 Primary model result unsatisfactory, trying fallback models...")
             
-            # Try primary model first
-            success, extracted_content, confidence_score = _try_ollama_request(prompt, img_base64, current_model, config)
+            best_result = (extracted_content, confidence_score) if success else ("", 0.0)
             
-            # If primary model failed or confidence is very low, try fallback models
-            if config.get('auto_fallback', True) and (not success or confidence_score < 0.3):
-                print("🔄 Primary model result unsatisfactory, trying fallback models...")
+            for fallback_model in config.get('fallback_models', []):
+                if fallback_model == current_model:
+                    continue  # Skip if same as primary
                 
-                fallback_models = config.get('fallback_models', [])
-                best_result = (extracted_content, confidence_score) if success else ("", 0.0)
+                success, fallback_content, fallback_confidence = _try_ollama_request(prompt, img_base64, fallback_model, config, mode)
                 
-                for fallback_model in fallback_models:
-                    if fallback_model == current_model:
-                        continue  # Skip if same as primary
+                if success and fallback_confidence > best_result[1]:
+                    print(f"✨ Better result from {fallback_model} (confidence: {fallback_confidence:.2f} vs {best_result[1]:.2f})")
+                    best_result = (fallback_content, fallback_confidence)
                     
-                    success, fallback_content, fallback_confidence = _try_ollama_request(prompt, img_base64, fallback_model, config)
-                    
-                    if success and fallback_confidence > best_result[1]:
-                        print(f"✨ Better result from {fallback_model} (confidence: {fallback_confidence:.2f} vs {best_result[1]:.2f})")
-                        best_result = (fallback_content, fallback_confidence)
-                        
-                        # Stop if we found a good enough result
-                        if fallback_confidence >= config['confidence_threshold']:
-                            break
-                
-                extracted_content, confidence_score = best_result
+                    # Stop if we found a good enough result
+                    if fallback_confidence >= config['confidence_threshold']:
+                        break
+            
+            extracted_content, confidence_score = best_result
+        
+        return extracted_content, confidence_score
+    
+    except ConnectionError as e:
+        print(f"❌ Ollama server not reachable, fallback models skipped: {e}")
+        return "", 0.0
+
+if ollama and Image:
+    def xtxt_image_ocr_ollama(file_buffer, mode="ocr", model=None):
+        """
+        Extract text from images using Ollama with multimodal models.
+        
+        Args:
+            file_buffer: Image file buffer
+            mode: "ocr" (text only) or "describe" (text + description)  
+            model: Override default model (optional)
+        """
+        # Use specified model or global default
+        current_model = model or OLLAMA_MODEL
+        try:
+            config = OLLAMA_CONFIG
+            img_base64 = _image_to_base64(file_buffer, config)
+            prompt = _build_prompt(mode, config)
+            extracted_content, confidence_score = _generate_with_fallback(prompt, img_base64, current_model, config, mode)
             
             # Check confidence threshold
             if confidence_score < config['confidence_threshold']:
@@ -675,108 +698,17 @@ DESCRIPTION: [image description following the guidelines above]"""
     def xtxt_image_ocr_ollama_with_confidence(file_buffer, mode="ocr", model=None):
         """
         Version of OCR-Ollama that returns both text and confidence score.
+        Uses the same prompts, image preprocessing and model fallback as xtxt_image_ocr_ollama.
         
         Returns:
             tuple: (extracted_text, confidence_score)
         """
+        current_model = model or OLLAMA_MODEL
         try:
-            # Use specified model or global default
-            current_model = model or OLLAMA_MODEL
-            
-            # Convert buffer to PIL Image
-            if hasattr(file_buffer, 'seek'):
-                file_buffer.seek(0)
-            image_data = file_buffer.read()
-            image = Image.open(BytesIO(image_data))
-            
-            # Convert to RGB if needed
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            
-            # Get current configuration
             config = OLLAMA_CONFIG
-            
-            # Apply image enhancement if enabled
-            if config.get('enhance_image', True):
-                print("⚡ Enhancing image for better OCR...")
-                image = _enhance_image(image, config['context'], config['min_size'], config['max_size'])
-            
-            # Convert image to base64
-            buffered = BytesIO()
-            image.save(buffered, format="PNG")
-            img_base64 = base64.b64encode(buffered.getvalue()).decode()
-            
-            # Build prompts (same logic as main function)
-            lang_hint = ""
-            if config['language'] != 'auto':
-                lang_hint = f"Text language: {config['language']}. "
-            
-            if mode == "ocr":
-                prompt = f"""Look carefully at this image and extract ALL text that you can see, including:
-- Titles, headings, and main text content  
-- Small print, captions, labels, and annotations
-- Numbers, measurements, quantities, and symbols
-- Menu items, ingredient lists, cooking instructions
-- Any text in boxes, speech bubbles, or decorative elements
-
-IMPORTANT: 
-- Read carefully and include even small or partially visible text
-- Preserve the original formatting and line breaks where possible
-- {lang_hint}Process the text from left to right, top to bottom
-- If you cannot find any readable text at all, respond with 'NO_TEXT_FOUND'
-
-Extracted text:"""
-            else:  # describe mode
-                style_prompts = {
-                    'descriptive': "Provide a clear, descriptive explanation",
-                    'technical': "Use technical terminology and precise descriptions", 
-                    'simple': "Use simple, easy-to-understand language",
-                    'detailed': "Provide comprehensive details about all visual elements"
-                }
-                
-                length_hints = {
-                    'short': "Keep descriptions brief (1-2 sentences)",
-                    'medium': "Provide moderate detail (2-4 sentences)",
-                    'long': "Give comprehensive descriptions (4-8 sentences)"
-                }
-                
-                style_instruction = style_prompts.get(config['style'], style_prompts['descriptive'])
-                length_instruction = length_hints.get(config['caption_length'], length_hints['medium'])
-                
-                prompt = f"""Analyze this image and provide:
-1. All visible text exactly as written (preserve formatting, line breaks, bullet points)
-2. Image description following these guidelines:
-   - {style_instruction}
-   - {length_instruction}
-   - {lang_hint}Focus on key visual elements, layout, and context
-
-Format:
-TEXT: [all visible text here, or NO_TEXT_FOUND if none]
-DESCRIPTION: [image description following the guidelines above]"""
-            
-            # Try primary model first
-            success, extracted_content, confidence_score = _try_ollama_request(prompt, img_base64, current_model, config)
-            
-            # Try fallback if enabled and primary result is poor
-            if config.get('auto_fallback', True) and (not success or confidence_score < 0.3):
-                fallback_models = config.get('fallback_models', [])
-                best_result = (extracted_content, confidence_score) if success else ("", 0.0)
-                
-                for fallback_model in fallback_models:
-                    if fallback_model == current_model:
-                        continue
-                    
-                    success, fallback_content, fallback_confidence = _try_ollama_request(prompt, img_base64, fallback_model, config)
-                    
-                    if success and fallback_confidence > best_result[1]:
-                        best_result = (fallback_content, fallback_confidence)
-                        if fallback_confidence >= config['confidence_threshold']:
-                            break
-                
-                extracted_content, confidence_score = best_result
-            
-            # Return both text and confidence
-            return extracted_content, confidence_score
+            img_base64 = _image_to_base64(file_buffer, config)
+            prompt = _build_prompt(mode, config)
+            return _generate_with_fallback(prompt, img_base64, current_model, config, mode)
             
         except Exception as e:
             print(f"⚠️ Error extracting from image with Ollama {current_model}: {e}")

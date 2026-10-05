@@ -19,7 +19,7 @@ text = xtxt("report.pdf")
 
 ## ✨ Features
 
-- **One function for everything**: `xtxt()` accepts a file path, an `io.BytesIO` buffer, raw `bytes` or a `requests.Response`
+- **One function for everything**: `xtxt()` accepts a file path, a binary file object, an `io.BytesIO` buffer, raw `bytes` or a `requests.Response`
 - **Automatic type detection** with `python-magic`, refined by the file extension when libmagic is not specific enough (e.g. Markdown)
 - **Modular dependencies**: each format is an optional extra, the core only needs `python-magic`
 - **Office, web and document formats**: PDF, DOCX, PPTX, XLSX, XLS, ODT, HTML, XML, SVG, Markdown, EPUB, RTF, EML, MSG, LaTeX, DOC, TXT
@@ -34,8 +34,8 @@ text = xtxt("report.pdf")
 | Format | Install extra | Notes |
 |---|---|---|
 | PDF | `pdf` | PyMuPDF |
-| DOCX | `docx` | Paragraph text (tables are not extracted yet) |
-| PPTX | `presentation` | Text of all slide shapes |
+| DOCX | `docx` | Paragraphs and tables in document order, headers and footers |
+| PPTX | `presentation` | Text boxes, grouped shapes, tables and speaker notes |
 | XLSX, XLS | `spreadsheet` | Every row of every visible sheet, cells joined with ` \| ` |
 | ODT | `odf` | |
 | HTML | `html` | |
@@ -44,11 +44,11 @@ text = xtxt("report.pdf")
 | EPUB | `epub` | |
 | RTF | `rtf` | |
 | EML | `email` | Plain-text and HTML parts |
-| MSG (Outlook) | `outlook` | |
+| MSG (Outlook) | `outlook` | Plain-text body, or the HTML body when there is no plain text |
 | LaTeX | `latex` | |
 | DOC (legacy Word) | — | Needs the `antiword` system tool |
 | TXT and other `text/*` | — | Always available, decoded as UTF-8 |
-| Audio and video | `audio` | Whisper, needs `ffmpeg`; heavy download |
+| Audio and video | `audio` | Whisper, needs `ffmpeg`; heavy download. MP3, WAV, M4A, AAC, FLAC, OGG/Opus, AIFF, WMA, MP4, MOV, AVI, MKV, WebM |
 | Images (OCR) | `ocr` or `ocr-ollama` | See [OCR from images](#-ocr-from-images) |
 
 To list what is available in your installation:
@@ -125,9 +125,12 @@ from pyxtxt import xtxt
 # From a file path
 text = xtxt("document.pdf")
 
-# From an in-memory buffer
+# From a file object opened in binary mode
 with open("document.docx", "rb") as f:
-    buffer = io.BytesIO(f.read())
+    text = xtxt(f)
+
+# From an in-memory buffer
+buffer = io.BytesIO(docx_bytes)
 text = xtxt(buffer)
 
 # Give the buffer a name to help type detection (useful for Markdown, LaTeX, RTF)
@@ -261,12 +264,12 @@ print((files("pyxtxt") / "examples.py").read_text())
 
 ## ⚠️ Known limitations
 
-- **Supported inputs**: file paths, `io.BytesIO`, `bytes` and `requests.Response`. A file object returned by
-  `open()` must be read first (`xtxt(f.read())`).
+- **Supported inputs**: file paths, binary file objects, `io.BytesIO`, `bytes` and `requests.Response`.
+  File objects opened in text mode are rejected: open them with `"rb"`.
 - **Type detection without a file name**: libmagic cannot tell apart some formats from raw bytes (legacy Office files
   share the same signature; Markdown looks like plain text). Pass a file path, or set `buffer.name`, when possible.
 - **Legacy PowerPoint (`.ppt`)** is not supported.
-- **DOCX**: text inside tables, headers and footers is not extracted yet. **SVG**: text inside `<tspan>` elements is not extracted yet.
+- **DOCX**: text boxes, footnotes and comments are not extracted. **PPTX**: text inside charts is not extracted.
 - Errors are reported with messages printed to standard output and the functions return `None` or an empty string;
   they do not raise exceptions.
 
@@ -323,6 +326,23 @@ Pull requests, issues and feedback are welcome.
 ---
 
 ## 📊 Changelog
+
+### v0.3.8
+- **NEW**: `xtxt()` accepts binary file objects, e.g. `xtxt(open("file.pdf", "rb"))`
+- **FIXED**: XLSX passed as `bytes` or `BytesIO` was detected as a ZIP archive and rejected
+- **FIXED**: WAV, M4A, AAC, AIFF, WMA and MKV files were never transcribed (libmagic reports them as `audio/x-wav`,
+  `audio/x-m4a`, `video/x-matroska`, ... which were not registered)
+- **FIXED**: MSG extraction always failed (`extract_msg.Message` has no `extract()` method)
+- **FIXED**: SVG extraction failed on `<text>` elements containing `<tspan>`
+- **IMPROVED**: DOCX now includes tables (in document order), headers and footers
+- **IMPROVED**: PPTX now includes grouped shapes, tables and speaker notes
+- **IMPROVED**: ODT now includes headings and text inside spans, links and lists
+- **IMPROVED**: EXIF output formats aperture, shutter speed and focal length as intended and reads PNG/WebP metadata
+  through Pillow's public API; the fake `image/*+exif` MIME types are gone from `extxt_available_formats()`
+- **IMPROVED**: Whisper temporary files are always deleted, also when transcription fails
+- **IMPROVED**: Ollama OCR stops trying fallback models when the server is not reachable;
+  `xtxt_image_with_confidence()` now uses the same context-aware prompts as `xtxt()`;
+  hallucination keywords match whole words (e.g. "roman" no longer fires on "romance")
 
 ### v0.3.7
 - Python 3.10 or newer is now required; metadata no longer lists the end-of-life versions 3.7–3.9, which were never tested

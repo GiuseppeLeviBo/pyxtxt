@@ -1,5 +1,4 @@
 from . import register_extractor
-import tempfile
 
 try:
     import extract_msg
@@ -9,30 +8,21 @@ except ImportError:
 
 if extract_msg:
     def xtxt_msg(file_buffer):
-        # Salva su file temporaneo perché extract_msg lavora su path
+        # extract_msg accetta direttamente i bytes del file .msg
         content = file_buffer.read()
-        
-        with tempfile.NamedTemporaryFile(suffix=".msg", delete=False) as tmp:
-            tmp.write(content)
-            tmp.flush()
-            
-            try:
-                msg = extract_msg.Message(tmp.name)
-                msg.extract()  # Decodifica i contenuti
-                
-                parts = []
-                
-                if msg.body:
-                    parts.append(msg.body)
-                
-                if msg.htmlBody:
-                    soup = BeautifulSoup(msg.htmlBody, "html.parser")
-                    parts.append(soup.get_text(separator="\n"))
-                
-                return "\n\n".join(part.strip() for part in parts if part)
-            finally:
-                import os
-                os.unlink(tmp.name)
+
+        with extract_msg.openMsg(content) as msg:
+            body = getattr(msg, "body", None)
+            if body and body.strip():
+                return body.strip()
+
+            # Nessun corpo in testo semplice: usa la versione HTML
+            html_body = getattr(msg, "htmlBody", None)
+            if html_body:
+                soup = BeautifulSoup(html_body, "html.parser")
+                return soup.get_text(separator="\n").strip()
+
+            return ""
 
     register_extractor(
         "application/vnd.ms-outlook",

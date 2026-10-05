@@ -120,3 +120,170 @@ def test_ollama_ocr_takes_precedence_over_easyocr():
     pytest.importorskip("ollama")
     pytest.importorskip("PIL")
     assert estrattori["image/png"].__module__.endswith("ocr_ollama")
+
+
+# --- Inputs -----------------------------------------------------------------
+
+def test_binary_file_object(tmp_path):
+    pytest.importorskip("markdown")
+    path = tmp_path / "doc.md"
+    path.write_text(MD_SOURCE)
+    with open(path, "rb") as f:
+        text = xtxt(f)
+    assert "Title" in text and "**" not in text
+
+
+def test_text_mode_file_object_returns_none(tmp_path):
+    path = tmp_path / "doc.txt"
+    path.write_text("hello")
+    with open(path) as f:
+        assert xtxt(f) is None
+
+
+def test_xlsx_from_bytes_is_detected(tmp_path):
+    """libmagic needs more than the first 2 KB to recognise XLSX."""
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.Workbook()
+    wb.active.append(["cell from bytes"])
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    assert "cell from bytes" in xtxt(buffer.getvalue())
+
+
+# --- Document formats -------------------------------------------------------
+
+def test_docx_tables_headers_and_footers():
+    docx = pytest.importorskip("docx")
+    document = docx.Document()
+    document.sections[0].header.paragraphs[0].text = "Header text"
+    document.sections[0].footer.paragraphs[0].text = "Footer text"
+    document.add_paragraph("Before table")
+    table = document.add_table(rows=2, cols=3)
+    table.cell(0, 0).text = "A1"
+    table.cell(0, 1).merge(table.cell(0, 2)).text = "Merged"
+    table.cell(1, 0).text = "A2"
+    table.cell(1, 1).text = "B2"
+    table.cell(1, 2).add_table(rows=1, cols=1).cell(0, 0).text = "Nested"
+    document.add_paragraph("After table")
+    buffer = io.BytesIO()
+    document.save(buffer)
+
+    lines = xtxt(buffer.getvalue()).splitlines()
+    assert lines == ["Header text", "Before table", "A1 | Merged", "A2 | B2 | Nested", "After table", "Footer text"]
+
+
+def test_pptx_groups_tables_and_notes():
+    pptx = pytest.importorskip("pptx")
+    from pptx.util import Inches
+
+    presentation = pptx.Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[5])
+    slide.shapes.title.text = "Slide title"
+    group = slide.shapes.add_group_shape()
+    group.shapes.add_textbox(0, 0, Inches(1), Inches(1)).text_frame.text = "Inside group"
+    table = slide.shapes.add_table(1, 2, 0, 0, Inches(4), Inches(1)).table
+    table.cell(0, 0).text = "H1"
+    table.cell(0, 1).text = "H2"
+    slide.notes_slide.notes_text_frame.text = "Speaker notes"
+    buffer = io.BytesIO()
+    presentation.save(buffer)
+
+    assert xtxt(buffer.getvalue()).splitlines() == ["Slide title", "Inside group", "H1 | H2", "Speaker notes"]
+
+
+def test_odt_headings_spans_and_lists():
+    pytest.importorskip("odf")
+    from odf.opendocument import OpenDocumentText
+    from odf.text import H, List, ListItem, P, Span
+
+    document = OpenDocumentText()
+    document.text.addElement(H(outlinelevel=1, text="Heading"))
+    paragraph = P(text="Plain ")
+    paragraph.addElement(Span(text="spanned"))
+    paragraph.addText(" tail")
+    document.text.addElement(paragraph)
+    items = List()
+    item = ListItem()
+    item.addElement(P(text="List item"))
+    items.addElement(item)
+    document.text.addElement(items)
+    buffer = io.BytesIO()
+    document.save(buffer)
+
+    assert xtxt(buffer.getvalue()).splitlines() == ["Heading", "Plain spanned tail", "List item"]
+
+
+def test_svg_tspan_and_empty_text():
+    pytest.importorskip("lxml")
+    svg = (
+        b'<svg xmlns="http://www.w3.org/2000/svg">'
+        b"<text>Hi</text><text/><text><tspan>nested</tspan> <tspan>words</tspan></text>"
+        b"</svg>"
+    )
+    assert xtxt(svg).splitlines() == ["Hi", "nested words"]
+
+
+# --- EXIF and email ---------------------------------------------------------
+
+@pytest.mark.parametrize("image_format", ["JPEG", "PNG", "WEBP"])
+def test_exif_formats_rationals_and_gps(image_format):
+    pytest.importorskip("PIL")
+    from PIL import Image
+    from PIL.TiffImagePlugin import IFDRational
+    from pyxtxt import xtxt_exif
+
+    exif = Image.Exif()
+    exif[0x010F] = "Canon"
+    camera = exif.get_ifd(0x8769)
+    camera[0x829D] = IFDRational(28, 10)   # FNumber
+    camera[0x829A] = IFDRational(1, 250)   # ExposureTime
+    camera[0x920A] = IFDRational(50, 1)    # FocalLength
+    gps = exif.get_ifd(0x8825)
+    gps[1] = "N"
+    gps[2] = (IFDRational(44, 1), IFDRational(30, 1), IFDRational(0, 1))
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(buffer, image_format, exif=exif)
+    buffer.seek(0)
+
+    text = xtxt_exif(buffer)
+    for expected in ["Make: Canon", "Aperture: f/2.8", "Shutter Speed: 1/250s", "Focal Length: 50mm", "GPS Latitude: 44.500000° N"]:
+        assert expected in text
+    assert "ExifOffset" not in text
+
+
+def test_no_fake_exif_mime_types():
+    from pyxtxt import extxt_available_formats
+
+    assert not [mime for mime in extxt_available_formats() if "+exif" in mime]
+
+
+class _FakeMsg:
+    def __init__(self, body, html_body):
+        self.body = body
+        self.htmlBody = html_body
+        self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.closed = True
+
+
+@pytest.mark.parametrize(
+    "body, html_body, expected",
+    [
+        ("Plain body\r\n", b"<p>Plain body</p>", "Plain body"),
+        ("", b"<html><body><p>Only HTML</p></body></html>", "Only HTML"),
+    ],
+    ids=["plain-text-preferred", "html-fallback"],
+)
+def test_msg_body_and_close(monkeypatch, body, html_body, expected):
+    pytest.importorskip("extract_msg")
+    pytest.importorskip("bs4")
+    from pyxtxt.estrattori import msg as msg_module
+
+    fake = _FakeMsg(body, html_body)
+    monkeypatch.setattr(msg_module.extract_msg, "openMsg", lambda content: fake)
+    assert msg_module.xtxt_msg(io.BytesIO(b"fake msg bytes")) == expected
+    assert fake.closed
