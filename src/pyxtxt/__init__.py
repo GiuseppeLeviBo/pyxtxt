@@ -1,4 +1,13 @@
-from .core import xtxt, extxt_available_formats, xtxt_from_url
+import logging
+
+# Library convention: no output unless the application configures logging
+# (e.g. logging.basicConfig(level=logging.INFO)).
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+from .core import (  # noqa: E402
+    xtxt, xtxt_from_url, xtxt_available_formats, extxt_available_formats,
+    ExtractionError, UnsupportedFormatError,
+)
 
 # Import EXIF functions if available
 try:
@@ -20,7 +29,10 @@ except ImportError:
     ollama_available = False
 
 # Build __all__ dynamically based on available features
-__all__ = ["xtxt", "extxt_available_formats", "xtxt_from_url"]
+__all__ = [
+    "xtxt", "xtxt_from_url", "xtxt_available_formats", "extxt_available_formats",
+    "ExtractionError", "UnsupportedFormatError",
+]
 
 if exif_available:
     __all__.extend(["xtxt_exif"])

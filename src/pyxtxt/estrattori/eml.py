@@ -8,6 +8,9 @@ except ImportError:
     email = None
 
 if email:
+    def _html_to_text(html):
+        return BeautifulSoup(html, "html.parser").get_text(separator="\n")
+
     def xtxt_eml(file_buffer):
         content = file_buffer.read()
         if isinstance(content, bytes):
@@ -15,27 +18,24 @@ if email:
         else:
             msg = email.message_from_string(content, policy=policy.default)
 
-        parts = []
+        plain_parts = []
+        html_parts = []
+        for part in msg.walk():
+            if part.is_multipart() or part.get_content_disposition() == "attachment":
+                continue
+            content_type = part.get_content_type()
+            if content_type == "text/plain":
+                plain_parts.append(part.get_content())
+            elif content_type == "text/html":
+                html_parts.append(_html_to_text(part.get_content()))
+            elif not msg.is_multipart() and part.get_content_maintype() == "text":
+                # Single-part message with another text type
+                plain_parts.append(part.get_content())
 
-        if msg.is_multipart():
-            for part in msg.walk():
-                content_type = part.get_content_type()
-                if content_type == "text/plain":
-                    parts.append(part.get_content())
-                elif content_type == "text/html":
-                    html = part.get_content()
-                    soup = BeautifulSoup(html, "html.parser")
-                    parts.append(soup.get_text(separator="\n"))
-        else:
-            content_type = msg.get_content_type()
-            payload = msg.get_content()
-            if content_type == "text/html":
-                soup = BeautifulSoup(payload, "html.parser")
-                parts.append(soup.get_text(separator="\n"))
-            else:
-                parts.append(payload)
-
-        return "\n\n".join(part.strip() for part in parts if part)
+        # The HTML version usually repeats the plain-text one (multipart/alternative):
+        # use it only when there is no plain text
+        parts = plain_parts or html_parts
+        return "\n\n".join(part.strip() for part in parts if part and part.strip())
 
     register_extractor(
         "message/rfc822",

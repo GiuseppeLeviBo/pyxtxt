@@ -43,7 +43,7 @@ text = xtxt("report.pdf")
 | Markdown | `markdown` | Detected by the `.md` / `.markdown` extension |
 | EPUB | `epub` | |
 | RTF | `rtf` | |
-| EML | `email` | Plain-text and HTML parts |
+| EML | `email` | Plain-text body, or the HTML body when there is no plain text; attachments are skipped |
 | MSG (Outlook) | `outlook` | Plain-text body, or the HTML body when there is no plain text |
 | LaTeX | `latex` | |
 | DOC (legacy Word) | — | Needs the `antiword` system tool |
@@ -54,11 +54,13 @@ text = xtxt("report.pdf")
 To list what is available in your installation:
 
 ```python
-from pyxtxt import extxt_available_formats
+from pyxtxt import xtxt_available_formats
 
-print(extxt_available_formats())             # MIME types
-print(extxt_available_formats(pretty=True))  # Short names
+print(xtxt_available_formats())             # MIME types
+print(xtxt_available_formats(pretty=True))  # Short names
 ```
+
+The former name `extxt_available_formats()` still works.
 
 ---
 
@@ -139,7 +141,41 @@ buffer.name = "notes.md"
 text = xtxt(buffer)
 ```
 
-`xtxt()` returns the extracted text as a `str`, or `None` when the file cannot be read or its type is not supported.
+### Results and errors
+
+`xtxt()` returns the extracted text as a `str`, an empty string when the file contains no text, or `None` when the
+text cannot be extracted (unreadable or corrupted file, unsupported type, missing optional library, ...).
+
+To know *why* an extraction failed, ask for an exception instead of `None`:
+
+```python
+from pyxtxt import xtxt, ExtractionError, UnsupportedFormatError
+
+try:
+    text = xtxt("document.pdf", raise_errors=True)
+except UnsupportedFormatError as e:
+    print("Format not supported or extra not installed:", e)
+except ExtractionError as e:
+    print("Extraction failed:", e, "- caused by:", repr(e.__cause__))
+```
+
+`UnsupportedFormatError` is a subclass of `ExtractionError`; the original exception, when there is one, is available
+as `__cause__`. `xtxt_from_url()` accepts `raise_errors=True` as well.
+
+### Logging
+
+PyxTxt does not print anything while extracting: it reports what it does through the standard `logging` module,
+under the `pyxtxt` logger, and by default nothing is shown. (The only exception is a Python warning at import time if an
+installed extractor module is broken.) To see the messages:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)                  # everything, INFO and above
+logging.getLogger("pyxtxt").setLevel(logging.WARNING)    # or only PyxTxt warnings and errors
+```
+
+Use `logging.DEBUG` for details such as the image preprocessing steps of the Ollama OCR.
 
 ### Web content
 
@@ -270,8 +306,6 @@ print((files("pyxtxt") / "examples.py").read_text())
   share the same signature; Markdown looks like plain text). Pass a file path, or set `buffer.name`, when possible.
 - **Legacy PowerPoint (`.ppt`)** is not supported.
 - **DOCX**: text boxes, footnotes and comments are not extracted. **PPTX**: text inside charts is not extracted.
-- Errors are reported with messages printed to standard output and the functions return `None` or an empty string;
-  they do not raise exceptions.
 
 ### 🤖 AI-powered features
 
@@ -326,6 +360,17 @@ Pull requests, issues and feedback are welcome.
 ---
 
 ## 📊 Changelog
+
+### v0.3.9
+- **NEW**: `xtxt(..., raise_errors=True)` raises `ExtractionError` (or `UnsupportedFormatError`) instead of returning
+  `None`, with the original exception as `__cause__`; also available in `xtxt_from_url()`
+- **CHANGED**: messages go through the `logging` module (`pyxtxt` logger) instead of being printed; nothing is shown
+  unless the application configures logging
+- **CHANGED**: `xtxt()` returns `None` for every failure and `""` only when the file has no text (some extractors used
+  to return `""` on errors, e.g. corrupted DOCX/XLSX, or an unreachable Ollama server)
+- **NEW**: `xtxt_available_formats()`, the former `extxt_available_formats()` is kept as an alias
+- **FIXED**: EML messages with both a plain-text and an HTML version returned the text twice; attachments are no
+  longer mixed into the body; `.eml` files are recognised even when libmagic sees them as plain text
 
 ### v0.3.8
 - **NEW**: `xtxt()` accepts binary file objects, e.g. `xtxt(open("file.pdf", "rb"))`

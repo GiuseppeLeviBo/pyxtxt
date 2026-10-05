@@ -6,6 +6,7 @@ from __future__ import annotations
 from . import register_extractor
 from io import BytesIO
 import base64
+import logging
 import re
 
 try:
@@ -14,6 +15,8 @@ try:
 except ImportError:
     ollama = None
     Image = None
+
+logger = logging.getLogger(__name__)
 
 # Global configuration for Ollama model and parameters
 OLLAMA_MODEL = "gemma3:4b"  # Default multimodal model
@@ -45,7 +48,7 @@ def set_ollama_model(model_name: str):
     """
     global OLLAMA_MODEL
     OLLAMA_MODEL = model_name
-    print(f"✅ Ollama OCR model set to: {model_name}")
+    logger.info(f"Ollama OCR model set to: {model_name}")
 
 def get_ollama_model():
     """Get current Ollama model name"""
@@ -82,9 +85,9 @@ def set_ollama_config(**kwargs):
     for key, value in kwargs.items():
         if key in OLLAMA_CONFIG:
             OLLAMA_CONFIG[key] = value
-            print(f"✅ Ollama config updated: {key} = {value}")
+            logger.info(f"Ollama config updated: {key} = {value}")
         else:
-            print(f"⚠️ Unknown config parameter: {key}")
+            logger.warning(f"Unknown config parameter: {key}")
 
 def get_ollama_config():
     """Get current Ollama configuration"""
@@ -95,7 +98,7 @@ def configure_for_medical_images():
     Quick configuration setup for optimal medical image processing.
     Configures model, enhancement, and context for X-rays and medical scans.
     """
-    print("🏥 Configuring for medical image processing...")
+    logger.info("Configuring for medical image processing...")
     
     # Optimal medical settings  
     global OLLAMA_CONFIG
@@ -114,21 +117,21 @@ def configure_for_medical_images():
     # Suggest high-quality model if current is default
     current_model = get_ollama_model()
     if current_model == "gemma3:4b":
-        print("💡 Consider upgrading to gemma3:27b for better medical image recognition")
-        print("   Run: set_ollama_model('gemma3:27b')")
+        logger.info("Consider upgrading to gemma3:27b for better medical image recognition")
+        logger.info("   Run: set_ollama_model('gemma3:27b')")
     
-    print("✅ Medical configuration applied:")
-    print(f"   - Enhanced image processing: {OLLAMA_CONFIG['enhance_image']}")
-    print(f"   - Minimum resolution: {OLLAMA_CONFIG['min_size']}px")
-    print(f"   - Confidence threshold: {OLLAMA_CONFIG['confidence_threshold']}")
-    print(f"   - Fallback models: {len(OLLAMA_CONFIG['fallback_models'])} configured")
+    logger.info("Medical configuration applied:")
+    logger.info(f"   - Enhanced image processing: {OLLAMA_CONFIG['enhance_image']}")
+    logger.info(f"   - Minimum resolution: {OLLAMA_CONFIG['min_size']}px")
+    logger.info(f"   - Confidence threshold: {OLLAMA_CONFIG['confidence_threshold']}")
+    logger.info(f"   - Fallback models: {len(OLLAMA_CONFIG['fallback_models'])} configured")
 
 def configure_for_xray_images():
     """
     Specialized configuration for X-ray and radiological image processing.
     Optimized for detecting small text, markers, and technical annotations.
     """
-    print("📷 Configuring for X-ray image processing...")
+    logger.info("Configuring for X-ray image processing...")
     
     # X-ray specific settings
     global OLLAMA_CONFIG
@@ -147,14 +150,14 @@ def configure_for_xray_images():
     # Recommend best model for X-rays
     current_model = get_ollama_model()
     if current_model != "gemma3:27b":
-        print("🎯 For best X-ray results, use gemma3:27b model")
-        print("   Run: set_ollama_model('gemma3:27b')")
+        logger.info("For best X-ray results, use gemma3:27b model")
+        logger.info("   Run: set_ollama_model('gemma3:27b')")
     
-    print("✅ X-ray configuration applied:")
-    print(f"   - Context: Medical X-ray specialization")
-    print(f"   - Enhanced processing: Advanced medical filters")
-    print(f"   - High precision mode: {OLLAMA_CONFIG['confidence_threshold']} threshold")
-    print(f"   - Temperature: {OLLAMA_CONFIG['temperature']} (maximum precision)")
+    logger.info("X-ray configuration applied:")
+    logger.info(f"   - Context: Medical X-ray specialization")
+    logger.info(f"   - Enhanced processing: Advanced medical filters")
+    logger.info(f"   - High precision mode: {OLLAMA_CONFIG['confidence_threshold']} threshold")
+    logger.info(f"   - Temperature: {OLLAMA_CONFIG['temperature']} (maximum precision)")
 
 def quick_xray_analysis(image_path: str) -> str:
     """
@@ -178,7 +181,7 @@ def quick_xray_analysis(image_path: str) -> str:
         set_ollama_model('gemma3:27b')  # Use best model
         
         # Perform analysis
-        print("🔍 Analyzing X-ray image...")
+        logger.info("Analyzing X-ray image...")
         result = xtxt_image_describe(image_path)
         
         return result
@@ -187,7 +190,7 @@ def quick_xray_analysis(image_path: str) -> str:
         # Restore original configuration
         OLLAMA_CONFIG = original_config
         set_ollama_model(original_model)
-        print("🔄 Configuration restored")
+        logger.info("Configuration restored")
 
 def reset_ollama_config():
     """Reset Ollama configuration to defaults"""
@@ -206,7 +209,7 @@ def reset_ollama_config():
         'auto_fallback': True,
         'fallback_models': ['gemma3:27b', 'gemma3:12b', 'llava:13b']
     }
-    print("✅ Ollama configuration reset to defaults")
+    logger.info("Ollama configuration reset to defaults")
 
 def _enhance_image(image: Image.Image, context: str, min_size: int, max_size: int) -> Image.Image:
     """
@@ -240,18 +243,18 @@ def _enhance_image(image: Image.Image, context: str, min_size: int, max_size: in
         new_width = int(width * scale_factor)
         new_height = int(height * scale_factor) 
         enhanced = enhanced.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        print(f"📈 Image upscaled from {width}x{height} to {new_width}x{new_height}")
+        logger.debug(f"Image upscaled from {width}x{height} to {new_width}x{new_height}")
     elif max_dimension > max_size:
         # Downscale large images to manageable size
         scale_factor = max_size / max_dimension
         new_width = int(width * scale_factor)
         new_height = int(height * scale_factor)
         enhanced = enhanced.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        print(f"📉 Image downscaled from {width}x{height} to {new_width}x{new_height}")
+        logger.debug(f"Image downscaled from {width}x{height} to {new_width}x{new_height}")
     
     # Context-specific enhancements
     if context in ['medical', 'xray']:
-        print("🏥 Applying medical image enhancements...")
+        logger.debug("Applying medical image enhancements...")
         # Medical images often benefit from:
         # 1. Contrast enhancement to bring out subtle details
         contrast = ImageEnhance.Contrast(enhanced)
@@ -265,7 +268,7 @@ def _enhance_image(image: Image.Image, context: str, min_size: int, max_size: in
         enhanced = brightness.enhance(1.1)
         
     elif context in ['document', 'handwriting', 'technical']:
-        print("📄 Applying document enhancement...")
+        logger.debug("Applying document enhancement...")
         # Documents benefit from:
         # 1. Moderate sharpening for text clarity
         enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=0.5, percent=150, threshold=3))
@@ -275,7 +278,7 @@ def _enhance_image(image: Image.Image, context: str, min_size: int, max_size: in
         enhanced = contrast.enhance(1.2)
         
     elif context == 'general':
-        print("🔧 Applying general enhancements...")
+        logger.debug("Applying general enhancements...")
         # General purpose light enhancement
         # 1. Slight contrast improvement
         contrast = ImageEnhance.Contrast(enhanced)
@@ -298,7 +301,7 @@ def _try_ollama_request(prompt: str, img_base64: str, current_model: str, config
         other models would fail the same way.
     """
     try:
-        print(f"🤖 Trying model: {current_model}")
+        logger.info(f"Trying model: {current_model}")
         
         response = ollama.generate(
             model=current_model,
@@ -321,7 +324,7 @@ def _try_ollama_request(prompt: str, img_base64: str, current_model: str, config
     except ConnectionError:
         raise
     except Exception as e:
-        print(f"❌ Model {current_model} failed: {e}")
+        logger.warning(f"Model {current_model} failed: {e}")
         return False, "", 0.0
 
 def _calculate_confidence_score(content: str, mode: str) -> float:
@@ -447,7 +450,7 @@ def _calculate_confidence_score(content: str, mode: str) -> float:
     for pattern, penalty, description in negative_patterns:
         if re.search(r"\b" + re.escape(pattern) + r"(?:s|es|ian|ians|ic)?\b", content_lower):
             score -= penalty
-            print(f"⚠️ Confidence penalty ({penalty}): {description}")
+            logger.debug(f"Confidence penalty ({penalty}): {description}")
     
     # Length-based adjustments
     if len(content) > 200:  # Substantial content
@@ -611,7 +614,7 @@ def _image_to_base64(file_buffer, config: dict) -> str:
     
     # Apply image enhancement if enabled
     if config.get('enhance_image', True):
-        print("⚡ Enhancing image for better OCR...")
+        logger.debug("Enhancing image for better OCR...")
         image = _enhance_image(image, config['context'], config['min_size'], config['max_size'])
     
     buffered = BytesIO()
@@ -624,13 +627,19 @@ def _generate_with_fallback(prompt: str, img_base64: str, current_model: str, co
     
     Returns:
         tuple: (extracted_text, confidence_score) of the best result
+
+    Raises:
+        ConnectionError: if the Ollama server is not reachable
+        RuntimeError: if no model returned a response
     """
     try:
         success, extracted_content, confidence_score = _try_ollama_request(prompt, img_base64, current_model, config, mode)
+        tried_models = [current_model]
+        any_success = success
         
         # If primary model failed or confidence is very low, try fallback models
         if config.get('auto_fallback', True) and (not success or confidence_score < 0.3):
-            print("🔄 Primary model result unsatisfactory, trying fallback models...")
+            logger.info("Primary model result unsatisfactory, trying fallback models...")
             
             best_result = (extracted_content, confidence_score) if success else ("", 0.0)
             
@@ -639,9 +648,11 @@ def _generate_with_fallback(prompt: str, img_base64: str, current_model: str, co
                     continue  # Skip if same as primary
                 
                 success, fallback_content, fallback_confidence = _try_ollama_request(prompt, img_base64, fallback_model, config, mode)
+                tried_models.append(fallback_model)
+                any_success = any_success or success
                 
                 if success and fallback_confidence > best_result[1]:
-                    print(f"✨ Better result from {fallback_model} (confidence: {fallback_confidence:.2f} vs {best_result[1]:.2f})")
+                    logger.info(f"Better result from {fallback_model} (confidence: {fallback_confidence:.2f} vs {best_result[1]:.2f})")
                     best_result = (fallback_content, fallback_confidence)
                     
                     # Stop if we found a good enough result
@@ -650,13 +661,41 @@ def _generate_with_fallback(prompt: str, img_base64: str, current_model: str, co
             
             extracted_content, confidence_score = best_result
         
-        return extracted_content, confidence_score
-    
     except ConnectionError as e:
-        print(f"❌ Ollama server not reachable, fallback models skipped: {e}")
-        return "", 0.0
+        logger.warning(f"Ollama server not reachable, fallback models skipped: {e}")
+        raise
+
+    if not any_success:
+        raise RuntimeError(f"No Ollama model could process the image (tried: {', '.join(tried_models)})")
+    return extracted_content, confidence_score
 
 if ollama and Image:
+    def _ocr_ollama(file_buffer, mode, model):
+        """Implementation of xtxt_image_ocr_ollama that raises on errors (used by xtxt())."""
+        # Use specified model or global default
+        current_model = model or OLLAMA_MODEL
+        config = OLLAMA_CONFIG
+        img_base64 = _image_to_base64(file_buffer, config)
+        prompt = _build_prompt(mode, config)
+        extracted_content, confidence_score = _generate_with_fallback(prompt, img_base64, current_model, config, mode)
+        
+        # Check confidence threshold
+        if confidence_score < config['confidence_threshold']:
+            logger.warning(f"Low confidence ({confidence_score:.2f} < {config['confidence_threshold']}): {extracted_content[:100]}...")
+            if mode == "ocr":
+                return ""  # Return empty for OCR if below threshold
+            else:
+                # For describe mode, add warning prefix
+                extracted_content = f"[LOW_CONFIDENCE_{confidence_score:.2f}] {extracted_content}"
+        else:
+            logger.info(f"Good confidence ({confidence_score:.2f}): Processing successful")
+        
+        # Handle no-text case for OCR mode
+        if mode == "ocr" and ('NO_TEXT_FOUND' in extracted_content or len(extracted_content) < 3):
+            return ""
+        
+        return extracted_content
+
     def xtxt_image_ocr_ollama(file_buffer, mode="ocr", model=None):
         """
         Extract text from images using Ollama with multimodal models.
@@ -665,34 +704,14 @@ if ollama and Image:
             file_buffer: Image file buffer
             mode: "ocr" (text only) or "describe" (text + description)  
             model: Override default model (optional)
+
+        Returns:
+            str: the extracted text, or "" on errors or low confidence
         """
-        # Use specified model or global default
-        current_model = model or OLLAMA_MODEL
         try:
-            config = OLLAMA_CONFIG
-            img_base64 = _image_to_base64(file_buffer, config)
-            prompt = _build_prompt(mode, config)
-            extracted_content, confidence_score = _generate_with_fallback(prompt, img_base64, current_model, config, mode)
-            
-            # Check confidence threshold
-            if confidence_score < config['confidence_threshold']:
-                print(f"⚠️ Low confidence ({confidence_score:.2f} < {config['confidence_threshold']}): {extracted_content[:100]}...")
-                if mode == "ocr":
-                    return ""  # Return empty for OCR if below threshold
-                else:
-                    # For describe mode, add warning prefix
-                    extracted_content = f"[LOW_CONFIDENCE_{confidence_score:.2f}] {extracted_content}"
-            else:
-                print(f"✅ Good confidence ({confidence_score:.2f}): Processing successful")
-            
-            # Handle no-text case for OCR mode
-            if mode == "ocr" and ('NO_TEXT_FOUND' in extracted_content or len(extracted_content) < 3):
-                return ""
-            
-            return extracted_content
-            
+            return _ocr_ollama(file_buffer, mode, model)
         except Exception as e:
-            print(f"⚠️ Error extracting from image with Ollama {current_model}: {e}")
+            logger.warning(f"Error extracting from image with Ollama {model or OLLAMA_MODEL}: {e}")
             return ""
     
     def xtxt_image_ocr_ollama_with_confidence(file_buffer, mode="ocr", model=None):
@@ -711,7 +730,7 @@ if ollama and Image:
             return _generate_with_fallback(prompt, img_base64, current_model, config, mode)
             
         except Exception as e:
-            print(f"⚠️ Error extracting from image with Ollama {current_model}: {e}")
+            logger.warning(f"Error extracting from image with Ollama {current_model}: {e}")
             return "", 0.0
 
     # Wrapper functions for each mode
@@ -748,5 +767,9 @@ if ollama and Image:
         "image/bmp", "image/tiff", "image/webp"
     ]
     
+    def _ocr_for_xtxt(file_buffer):
+        # Errors propagate to xtxt(), which returns None or raises (raise_errors=True)
+        return _ocr_ollama(file_buffer, "ocr", None)
+
     for format_type in image_formats:
-        register_extractor(format_type, xtxt_image_ocr_only, name="OCR-Ollama")
+        register_extractor(format_type, _ocr_for_xtxt, name="OCR-Ollama")

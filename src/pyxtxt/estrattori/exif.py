@@ -1,6 +1,9 @@
 # pyxtxt/extractors/image_exif.py
 from io import BytesIO
+import logging
 import numbers
+
+logger = logging.getLogger(__name__)
 
 try:
     from PIL import Image, ExifTags
@@ -187,7 +190,7 @@ if Image and ExifTags and TAGS:
                 return "NO_READABLE_EXIF_DATA"
             
         except Exception as e:
-            print(f"⚠️ Error extracting EXIF from image: {e}")
+            logger.warning(f"Error extracting EXIF from image: {e}")
             return ""
 
     # EXIF metadata is exposed through pyxtxt.xtxt_exif(): xtxt() on an image runs OCR.

@@ -1,4 +1,3 @@
-import io
 from typing import Optional
 from . import register_extractor
 try:
@@ -7,10 +6,8 @@ except ImportError:
     xlrd = None
 
 if xlrd:
-
- def xtxt_xls(file_buffer, max_rows_per_sheet: Optional[int] = None) -> str:
-    # max_rows_per_sheet: None or a negative value means no limit
-    try:
+    def xtxt_xls(file_buffer, max_rows_per_sheet: Optional[int] = None) -> str:
+        # max_rows_per_sheet: None or a negative value means no limit
         file_buffer.seek(0)
         workbook = xlrd.open_workbook(file_contents=file_buffer.read())
         testo = []
@@ -28,13 +25,8 @@ if xlrd:
 
         return "\n".join(testo)
 
-    except Exception as e:
-        print(f"⚠️ Error while extracting XLS: {e}")
-        return ""
-
- register_extractor(
-    "application/vnd.ms-excel",
-    xtxt_xls,
-    name="XLS"
-)
-
+    register_extractor(
+        "application/vnd.ms-excel",
+        xtxt_xls,
+        name="XLS"
+    )

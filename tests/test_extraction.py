@@ -287,3 +287,36 @@ def test_msg_body_and_close(monkeypatch, body, html_body, expected):
     monkeypatch.setattr(msg_module.extract_msg, "openMsg", lambda content: fake)
     assert msg_module.xtxt_msg(io.BytesIO(b"fake msg bytes")) == expected
     assert fake.closed
+
+
+# --- EML --------------------------------------------------------------------
+
+def _email_with_alternative_and_attachment():
+    from email.message import EmailMessage
+
+    message = EmailMessage()
+    message["Return-Path"] = "<sender@example.com>"
+    message["From"] = "sender@example.com"
+    message["Subject"] = "Report"
+    message.set_content("Plain version of the body")
+    message.add_alternative("<html><body><p>HTML version of the body</p></body></html>", subtype="html")
+    message.add_attachment(b"attached text file", maintype="text", subtype="plain", filename="notes.txt")
+    return message.as_bytes()
+
+
+def test_eml_plain_body_once_without_attachments():
+    pytest.importorskip("bs4")
+    assert xtxt(_email_with_alternative_and_attachment()) == "Plain version of the body"
+
+
+def test_eml_html_only_and_extension_hint(tmp_path):
+    pytest.importorskip("bs4")
+    from email.message import EmailMessage
+
+    message = EmailMessage()
+    message["Subject"] = "Starts with Subject, so libmagic sees plain text"
+    message.set_content("<p>Only <b>HTML</b> here</p>", subtype="html")
+    path = tmp_path / "message.eml"
+    path.write_bytes(message.as_bytes())
+    text = xtxt(str(path))
+    assert "Only" in text and "<p>" not in text and "Subject:" not in text
