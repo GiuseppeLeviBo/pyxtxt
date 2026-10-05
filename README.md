@@ -1,7 +1,7 @@
 # PyxTxt
 
-[![PyPI version](https://img.shields.io/pypi/v/pyxtxt.svg)](https://pypi.org/project/pyxtxt/)
-[![Python versions](https://img.shields.io/pypi/pyversions/pyxtxt.svg)](https://pypi.org/project/pyxtxt/)
+[![PyPI](https://img.shields.io/pypi/v/pyxtxt?label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/pyxtxt/)
+[![Python](https://img.shields.io/pypi/pyversions/pyxtxt?label=Python&logo=python&logoColor=white)](https://pypi.org/project/pyxtxt/)
 [![CI](https://github.com/GiuseppeLeviBo/pyxtxt/actions/workflows/ci.yml/badge.svg)](https://github.com/GiuseppeLeviBo/pyxtxt/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -270,6 +270,33 @@ penalises vague language and typical hallucination keywords (e.g. "ancient", "pa
 It is not a calibrated probability. In OCR mode, results below `confidence_threshold` (default 0.7) are discarded
 and an empty string is returned.
 
+#### Medical documents and X-ray images
+
+Two presets tune the Ollama OCR for the **text printed on medical documents and radiological images**: patient and
+exam identifiers, dates and times, L/R and positioning markers (AP, LAT, ...), measurement scales, hospital and
+equipment labels. Typical uses are cataloguing and indexing archives, or checking which personal data an image carries.
+
+```python
+from pyxtxt import xtxt, configure_for_xray_images, xtxt_xray_describe, reset_ollama_config
+
+configure_for_xray_images()        # or configure_for_medical_images() for reports, forms, scans
+text = xtxt("chest_xray.png")      # visible text only
+reset_ollama_config()
+
+# One call: X-ray preset + gemma3:27b, text and a generic description, then the previous settings are restored
+print(xtxt_xray_describe("chest_xray.png"))
+```
+
+The presets select dedicated prompts (`context="medical"` / `"xray"`), stronger contrast and sharpening, a higher
+resolution and stricter confidence thresholds. `xtxt_xray_describe()` was called `quick_xray_analysis()` in earlier
+versions; the old name still works.
+
+**Scope**: these functions *read text* and, in describe mode, give a *generic visual description*. They are based on
+a general-purpose language model, not on a medical device: they do **not** provide diagnoses or clinical
+interpretations (the prompts ask the model explicitly not to), and every result must be checked against the image.
+Medical images usually contain personal health data: Ollama runs locally, so images are not sent to external
+services, but the data protection rules that apply to your use case still apply.
+
 ### EXIF metadata
 
 Requires Pillow (installed by the `ocr` or `ocr-ollama` extras, or `pip install pillow`).
@@ -360,6 +387,13 @@ Pull requests, issues and feedback are welcome.
 ---
 
 ## 📊 Changelog
+
+### v0.3.10
+- **DOCS**: scope of the medical and X-ray presets clarified in docstrings and README (text reading, not diagnosis)
+- **NEW**: `xtxt_xray_describe()`, the clearer name of `quick_xray_analysis()`, which is kept as an alias
+- **CHANGED**: in describe mode, the `medical` and `xray` prompts ask the model not to give diagnoses or clinical
+  interpretations
+- **CHANGED**: new badge URLs, so that cached images of old versions are not shown
 
 ### v0.3.9
 - **NEW**: `xtxt(..., raise_errors=True)` raises `ExtractionError` (or `UnsupportedFormatError`) instead of returning
