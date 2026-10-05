@@ -95,8 +95,17 @@ def get_ollama_config():
 
 def configure_for_medical_images():
     """
-    Quick configuration setup for optimal medical image processing.
-    Configures model, enhancement, and context for X-rays and medical scans.
+    Preset for reading the text on medical documents and images: patient and exam
+    identifiers, dates, measurements and values, labels, hospital and equipment names.
+
+    Scope: text extraction (and, in describe mode, a generic visual description).
+    The model is a general-purpose LLM, not a medical device: it does not provide,
+    and must not be used for, diagnosis or clinical interpretation. Always verify
+    the results against the source.
+
+    Sets context='medical' (dedicated prompts), stronger image enhancement, higher
+    resolution, confidence_threshold=0.8, temperature=0.05 and larger fallback models.
+    The configuration stays active until reset_ollama_config().
     """
     logger.info("Configuring for medical image processing...")
     
@@ -128,8 +137,18 @@ def configure_for_medical_images():
 
 def configure_for_xray_images():
     """
-    Specialized configuration for X-ray and radiological image processing.
-    Optimized for detecting small text, markers, and technical annotations.
+    Preset for reading the text printed on X-ray and other radiological images:
+    patient and exam identifiers, dates and times, L/R and positioning markers
+    (AP, LAT, ...), measurement scales, hospital and equipment labels.
+
+    Scope: text extraction (and, in describe mode, a generic visual description).
+    The model is a general-purpose LLM, not a medical device: it does not provide,
+    and must not be used for, diagnosis or clinical interpretation. Always verify
+    the results against the source.
+
+    Sets context='xray' (dedicated prompts), contrast and sharpening tuned for small
+    text on radiographs, min_size=1200, confidence_threshold=0.85, temperature=0.02.
+    The configuration stays active until reset_ollama_config().
     """
     logger.info("Configuring for X-ray image processing...")
     
@@ -159,16 +178,23 @@ def configure_for_xray_images():
     logger.info(f"   - High precision mode: {OLLAMA_CONFIG['confidence_threshold']} threshold")
     logger.info(f"   - Temperature: {OLLAMA_CONFIG['temperature']} (maximum precision)")
 
-def quick_xray_analysis(image_path: str) -> str:
+def xtxt_xray_describe(image_path) -> str:
     """
-    Convenient one-function X-ray analysis with optimal settings.
-    Automatically configures system for X-ray processing and returns detailed analysis.
-    
+    Read the text printed on an X-ray image, plus a generic visual description.
+
+    Applies configure_for_xray_images(), switches to the gemma3:27b model, runs
+    xtxt_image_describe() and then restores the previous configuration and model.
+
+    Scope: the result lists the visible text (identifiers, dates, positioning
+    markers, scales, equipment labels) and a non-clinical description of the image.
+    It is NOT a radiological report: no diagnosis or clinical interpretation is
+    provided, and the results must be verified.
+
     Args:
-        image_path: Path to X-ray image file
-        
+        image_path: path of the image file, or a binary file object
+
     Returns:
-        str: Detailed text + description analysis
+        str: "TEXT: ... DESCRIPTION: ..." as returned by xtxt_image_describe()
     """
     # Save current config
     global OLLAMA_CONFIG
@@ -181,7 +207,7 @@ def quick_xray_analysis(image_path: str) -> str:
         set_ollama_model('gemma3:27b')  # Use best model
         
         # Perform analysis
-        logger.info("Analyzing X-ray image...")
+        logger.info("Reading text on X-ray image...")
         result = xtxt_image_describe(image_path)
         
         return result
@@ -191,6 +217,9 @@ def quick_xray_analysis(image_path: str) -> str:
         OLLAMA_CONFIG = original_config
         set_ollama_model(original_model)
         logger.info("Configuration restored")
+
+# Former name, kept for backward compatibility
+quick_xray_analysis = xtxt_xray_describe
 
 def reset_ollama_config():
     """Reset Ollama configuration to defaults"""
@@ -580,13 +609,15 @@ Extracted text:"""
             context_hint = """
    - Focus on medical content: patient data, measurements, anatomical labels, medical terminology
    - Look for dates, patient IDs, measurement values, diagnostic information
-   - Note any visible text on medical equipment or instrumentation"""
+   - Note any visible text on medical equipment or instrumentation
+   - Describe only what is visible: do not give a diagnosis or a clinical interpretation"""
         elif context == 'xray':
             context_hint = """
    - This appears to be a medical X-ray or radiological image
    - Look for: anatomical markers, measurement scales, patient information, timestamps
    - Focus on any visible text annotations, labels, or technical markings
-   - Note positioning indicators (L/R, anterior/posterior) or measurement rulers"""
+   - Note positioning indicators (L/R, anterior/posterior) or measurement rulers
+   - Describe only what is visible: do not give a diagnosis or a clinical interpretation"""
 
         prompt = f"""Analyze this image and provide:
 1. All visible text exactly as written (preserve formatting, line breaks, bullet points)

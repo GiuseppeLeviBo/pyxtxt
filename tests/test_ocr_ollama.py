@@ -100,3 +100,37 @@ def test_all_models_failing_is_an_error_for_xtxt(monkeypatch):
     monkeypatch.setattr(ocr_ollama.ollama, "generate", model_missing)
     with pytest.raises(ExtractionError, match="No Ollama model could process the image"):
         xtxt(_png_bytes(), raise_errors=True)
+
+
+def test_xray_describe_new_name_and_alias():
+    import pyxtxt
+
+    assert pyxtxt.xtxt_xray_describe is pyxtxt.quick_xray_analysis
+    assert ocr_ollama.quick_xray_analysis is ocr_ollama.xtxt_xray_describe
+
+
+def test_xray_describe_uses_preset_and_restores_settings(monkeypatch):
+    requests_seen = []
+
+    def fake_generate(**kwargs):
+        requests_seen.append(kwargs)
+        return {"response": "TEXT: ID 12345 L 2024-01-02\nDESCRIPTION: Grayscale image with a ruler on the left."}
+
+    monkeypatch.setattr(ocr_ollama.ollama, "generate", fake_generate)
+    model_before = ocr_ollama.get_ollama_model()
+    config_before = ocr_ollama.get_ollama_config()
+
+    result = ocr_ollama.xtxt_xray_describe(io.BytesIO(_png_bytes()))
+
+    assert result.startswith("TEXT: ID 12345")
+    assert requests_seen[0]["model"] == "gemma3:27b"
+    assert "X-ray" in requests_seen[0]["prompt"]
+    assert ocr_ollama.get_ollama_model() == model_before
+    assert ocr_ollama.get_ollama_config() == config_before
+
+
+@pytest.mark.parametrize("context", ["medical", "xray"])
+def test_medical_describe_prompts_exclude_diagnosis(context):
+    config = {**ocr_ollama.get_ollama_config(), "context": context}
+    prompt = ocr_ollama._build_prompt("describe", config)
+    assert "do not give a diagnosis or a clinical interpretation" in prompt

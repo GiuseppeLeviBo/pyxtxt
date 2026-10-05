@@ -22,7 +22,7 @@ try:
         set_ollama_model, get_ollama_model, xtxt_image_describe,
         set_ollama_config, get_ollama_config, reset_ollama_config,
         xtxt_image_with_confidence, configure_for_medical_images,
-        configure_for_xray_images, quick_xray_analysis
+        configure_for_xray_images, xtxt_xray_describe, quick_xray_analysis
     )
     ollama_available = True
 except ImportError:
@@ -42,7 +42,7 @@ if ollama_available:
         "set_ollama_model", "get_ollama_model", "xtxt_image_describe",
         "set_ollama_config", "get_ollama_config", "reset_ollama_config",
         "xtxt_image_with_confidence", "configure_for_medical_images",
-        "configure_for_xray_images", "quick_xray_analysis"
+        "configure_for_xray_images", "xtxt_xray_describe", "quick_xray_analysis"
     ])
 
 # Define EXIF wrapper function
