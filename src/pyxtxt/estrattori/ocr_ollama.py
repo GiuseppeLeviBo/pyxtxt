@@ -1,4 +1,8 @@
 # pyxtxt/extractors/image_ocr_ollama.py
+# Postpone annotation evaluation: `Image` is None when Pillow or ollama are missing,
+# and annotations like `Image.Image` would otherwise crash the module at import time.
+from __future__ import annotations
+
 from . import register_extractor
 from io import BytesIO
 import base64

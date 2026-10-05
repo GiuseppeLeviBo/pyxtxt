@@ -2,489 +2,362 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/pyxtxt.svg)](https://pypi.org/project/pyxtxt/)
 [![Python versions](https://img.shields.io/pypi/pyversions/pyxtxt.svg)](https://pypi.org/project/pyxtxt/)
+[![CI](https://github.com/GiuseppeLeviBo/pyxtxt/actions/workflows/ci.yml/badge.svg)](https://github.com/GiuseppeLeviBo/pyxtxt/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**PyxTxt** is a simple and powerful Python library to extract text from various file formats.  
-It supports PDF, DOCX, XLSX, PPTX, ODT, HTML, XML, TXT, legacy Office files, **audio/video transcription**, **OCR from images**, and more.
+**PyxTxt** is a small Python library that extracts plain text from many file formats through a single function, `xtxt()`.
+It detects the file type automatically (via `libmagic`) and dispatches to the right extractor. Extractors are optional:
+install only the ones you need.
 
-**NEW in v0.2.4**: Added video transcription support! Now supports both audio and video files using Whisper.
+```python
+from pyxtxt import xtxt
+
+text = xtxt("report.pdf")
+```
 
 ---
 
 ## ✨ Features
 
-- **Multiple input types**: File paths, `io.BytesIO` buffers, raw `bytes` objects, and `requests.Response` objects
-- **Wide format support**: PDF, DOCX, PPTX, XLSX, ODT, HTML, XML, TXT, Markdown, EPUB, RTF, EML, MSG, LaTeX, legacy Office files (.xls, .ppt, .doc)
-- **Audio & Video transcription**: MP3, WAV, M4A, FLAC, MP4, MOV, AVI, WebM, MKV and more using OpenAI Whisper
-- **OCR from images**: JPEG, PNG, TIFF, BMP using EasyOCR with multilingual support
-- **Automatic MIME detection**: Uses `python-magic` for intelligent file type recognition
-- **Web-ready**: Direct support for downloading and extracting text from URLs
-- **Memory efficient**: Process files without saving to disk
-- **Modern Python**: Full type hints and clean API design
+- **One function for everything**: `xtxt()` accepts a file path, an `io.BytesIO` buffer, raw `bytes` or a `requests.Response`
+- **Automatic type detection** with `python-magic`, refined by the file extension when libmagic is not specific enough (e.g. Markdown)
+- **Modular dependencies**: each format is an optional extra, the core only needs `python-magic`
+- **Office, web and document formats**: PDF, DOCX, PPTX, XLSX, XLS, ODT, HTML, XML, SVG, Markdown, EPUB, RTF, EML, MSG, LaTeX, DOC, TXT
+- **Audio and video transcription** with OpenAI Whisper
+- **OCR from images** with EasyOCR or with a local multimodal LLM through Ollama
+- **EXIF metadata** extraction from photos
 
 ---
 
-## 📦 Installation 
+## 📄 Supported formats
 
-The library is modular so you can install all modules:
+| Format | Install extra | Notes |
+|---|---|---|
+| PDF | `pdf` | PyMuPDF |
+| DOCX | `docx` | Paragraph text (tables are not extracted yet) |
+| PPTX | `presentation` | Text of all slide shapes |
+| XLSX, XLS | `spreadsheet` | Every row of every visible sheet, cells joined with ` \| ` |
+| ODT | `odf` | |
+| HTML | `html` | |
+| XML, SVG | `html` | Both use `lxml`, installed by the `html` extra |
+| Markdown | `markdown` | Detected by the `.md` / `.markdown` extension |
+| EPUB | `epub` | |
+| RTF | `rtf` | |
+| EML | `email` | Plain-text and HTML parts |
+| MSG (Outlook) | `outlook` | |
+| LaTeX | `latex` | |
+| DOC (legacy Word) | — | Needs the `antiword` system tool |
+| TXT and other `text/*` | — | Always available, decoded as UTF-8 |
+| Audio and video | `audio` | Whisper, needs `ffmpeg`; heavy download |
+| Images (OCR) | `ocr` or `ocr-ollama` | See [OCR from images](#-ocr-from-images) |
 
-```bash
-pip install pyxtxt[all]
-```
-or just the modules you need:
-```bash
-pip install pyxtxt[pdf,docx,presentation,spreadsheet,html,markdown,epub,email]
-```
+To list what is available in your installation:
 
-### Audio & OCR (Heavy Dependencies)
-```bash
-# Audio transcription (~2GB download for Whisper models)
-pip install pyxtxt[audio]
-
-# Traditional OCR from images (~1GB download for EasyOCR models)
-pip install pyxtxt[ocr]
-
-# AI-powered OCR via Ollama (requires local Ollama + gemma3:4b model)
-pip install pyxtxt[ocr-ollama]
-
-# Both audio and traditional OCR
-pip install pyxtxt[audio,ocr]
-```
-
-Because needed libraries are common, installing the html module will also enable SVG and XML support.
-The architecture is designed to grow with new modules for additional formats.
-## ⚠️ Note: You must have libmagic installed on your system (required by python-magic).
-The pyproject.toml file should select the correct version for your system. But if you have any problem you can install it manually.
-
-**On Ubuntu/Debian:**
-
-```bash
-sudo apt install libmagic1
-```
-
-**On Mac (Homebrew):**
-
-```bash
-brew install libmagic
-```
-**On Windows:**
-
-Use python-magic-bin instead of python-magic for easier installation.
-
-## 🛠️ Dependencies
-
-### Core Dependencies
-- python-magic (automatic file type detection)
-
-### Optional Dependencies by Format
-- **PDF**: PyMuPDF
-- **Office**: python-docx, python-pptx, openpyxl, xlrd
-- **Web/HTML**: beautifulsoup4, lxml
-- **OpenDocument**: odfpy
-- **Markdown**: markdown
-- **EPUB**: ebooklib
-- **RTF**: striprtf
-- **Email**: extract-msg (for MSG files)
-- **LaTeX**: pylatexenc
-- **Audio**: openai-whisper (heavy ~2GB models)
-- **OCR**: easyocr, pillow (heavy ~1GB models)
-- **OCR-Ollama**: ollama, pillow (requires local Ollama server)
-
-Dependencies are automatically installed based on selected optional groups.
-
-### System Dependencies
-Some extractors require system-level tools to be installed:
-
-- **Legacy DOC files**: `antiword` - Install via your package manager:
-  ```bash
-  # Ubuntu/Debian
-  sudo apt install antiword
-  
-  # macOS
-  brew install antiword
-  
-  # CentOS/RHEL
-  sudo yum install antiword
-  ```
-
-- **Audio/Video transcription**: `ffmpeg` - Required for audio preprocessing:
-  ```bash
-  # Ubuntu/Debian
-  sudo apt install ffmpeg
-  
-  # macOS
-  brew install ffmpeg
-  
-  # Windows
-  # Download from https://ffmpeg.org/download.html
-  ```
-
-## 📚 Usage Examples
-
-### Basic Usage
 ```python
+from pyxtxt import extxt_available_formats
+
+print(extxt_available_formats())             # MIME types
+print(extxt_available_formats(pretty=True))  # Short names
+```
+
+---
+
+## 📦 Installation
+
+Install every extractor (this includes the heavy audio and OCR dependencies):
+
+```bash
+pip install "pyxtxt[all]"
+```
+
+or only the formats you need:
+
+```bash
+pip install "pyxtxt[pdf,docx,presentation,spreadsheet,html,markdown,epub,email]"
+```
+
+Heavy optional extras:
+
+```bash
+pip install "pyxtxt[audio]"       # Whisper transcription (~2 GB with models, pulls in PyTorch)
+pip install "pyxtxt[ocr]"         # EasyOCR (~1 GB with models, pulls in PyTorch)
+pip install "pyxtxt[ocr-ollama]"  # OCR through a local Ollama server
+```
+
+### System dependencies
+
+**libmagic** (required by `python-magic`):
+
+```bash
+sudo apt install libmagic1      # Ubuntu / Debian
+brew install libmagic           # macOS
+```
+
+On Windows the `python-magic-bin` package, which bundles libmagic, is installed automatically.
+
+**antiword** (only for legacy `.doc` files):
+
+```bash
+sudo apt install antiword       # Ubuntu / Debian
+brew install antiword           # macOS
+```
+
+**ffmpeg** (only for audio/video transcription):
+
+```bash
+sudo apt install ffmpeg         # Ubuntu / Debian
+brew install ffmpeg             # macOS
+# Windows: https://ffmpeg.org/download.html
+```
+
+---
+
+## 📚 Usage
+
+### Basic usage
+
+```python
+import io
 from pyxtxt import xtxt
 
-# Extract from file path
+# From a file path
 text = xtxt("document.pdf")
-print(text)
 
-# Extract from BytesIO buffer
-import io
+# From an in-memory buffer
 with open("document.docx", "rb") as f:
     buffer = io.BytesIO(f.read())
 text = xtxt(buffer)
-print(text)
+
+# Give the buffer a name to help type detection (useful for Markdown, LaTeX, RTF)
+buffer = io.BytesIO(markdown_bytes)
+buffer.name = "notes.md"
+text = xtxt(buffer)
 ```
 
-### NEW: Web Content Support
+`xtxt()` returns the extracted text as a `str`, or `None` when the file cannot be read or its type is not supported.
+
+### Web content
+
+`xtxt_from_url()` and `requests.Response` support need the `requests` package (`pip install requests`).
+
 ```python
 import requests
 from pyxtxt import xtxt, xtxt_from_url
 
-# Method 1: Direct from bytes
 response = requests.get("https://example.com/document.pdf")
-text = xtxt(response.content)
+text = xtxt(response.content)   # from bytes
+text = xtxt(response)           # from the Response object
 
-# Method 2: Direct from Response object  
-text = xtxt(response)
-
-# Method 3: URL helper function
-text = xtxt_from_url("https://example.com/document.pdf")
+text = xtxt_from_url("https://example.com/document.pdf", timeout=10)
 ```
 
-### Audio & Video Transcription (NEW)
+Extra keyword arguments of `xtxt_from_url()` are passed to `requests.get()`.
+
+Typical uses:
+
+```python
+# File uploads (Flask / Django)
+text = xtxt(request.files["document"].read())
+
+# Email attachments
+text = xtxt(attachment.get_payload(decode=True))
+```
+
+### Audio and video transcription
+
 ```python
 from pyxtxt import xtxt
 
-# Transcribe audio files
 text = xtxt("meeting_recording.mp3")
 text = xtxt("interview.wav")
-text = xtxt("podcast.m4a")
-
-# Transcribe video files (extracts audio)
-text = xtxt("presentation.mp4")
-text = xtxt("conference_video.mov")
-text = xtxt("webinar.avi")
-
-# From web audio/video
-import requests
-audio_response = requests.get("https://example.com/audio.mp3")
-text = xtxt(audio_response.content)
-
-video_response = requests.get("https://example.com/video.mp4")
-text = xtxt(video_response.content)
+text = xtxt("presentation.mp4")   # the audio track is extracted automatically
 ```
 
-### OCR from Images (NEW)
+The Whisper `base` model is downloaded on first use and cached for the following calls.
+
+### 🖼 OCR from images
+
+Two OCR back-ends are available. If both are installed, **Ollama takes precedence** for `xtxt()` on images.
+
+**EasyOCR** (`pip install "pyxtxt[ocr]"`) runs locally on CPU, recognising Italian and English:
+
 ```python
-from pyxtxt import xtxt
-
-# Traditional OCR with EasyOCR (install with: pip install pyxtxt[ocr])
 text = xtxt("scanned_document.png")
-text = xtxt("screenshot.jpg")
-text = xtxt("invoice.tiff")
-
-# Extract EXIF metadata from photos (uses Pillow, already included)
-from pyxtxt import xtxt_exif
-
-exif_data = xtxt_exif("vacation_photo.jpg")
-print(exif_data)
-# Output: Camera make/model, GPS coordinates, shooting settings, datetime, etc.
-
-# AI-powered OCR with Ollama (install with: pip install pyxtxt[ocr-ollama])
-# Requires: ollama server running + gemma3:4b model
-from pyxtxt import (
-    xtxt, xtxt_image_describe, 
-    set_ollama_model, set_ollama_config, get_ollama_config
-)
-
-# Configure model (optional, default is gemma3:4b)
-set_ollama_model("gemma3:12b")  # or llava:7b, llava:13b, gemma3:27b
-
-# Configure LLM parameters for better captions
-set_ollama_config(
-    language='italian',        # Language hint for captions
-    caption_length='long',     # short, medium, long
-    style='detailed',          # descriptive, technical, simple, detailed
-    temperature=0.2,           # Creativity level (0.0-1.0)
-    max_tokens=2000           # Maximum response length
-)
-
-# Extract only text (OCR mode) 
-text = xtxt("complex_document.png")
-print(f"Extracted text: {text}")
-
-# Extract text + detailed caption
-full_analysis = xtxt_image_describe("scientific_diagram.png")
-print(full_analysis)
-# Output example:
-# TEXT: Figura 2.1: Struttura molecolare del DNA
-# DESCRIPTION: Diagramma scientifico dettagliato che mostra la doppia elica del DNA 
-# con nucleotidi colorati, legami idrogeno evidenziati e etichette in italiano per 
-# le basi azotate (adenina, timina, citosina, guanina).
-
-# Check current configuration
-config = get_ollama_config()
-print(f"Current config: {config}")
-
-# Reset to defaults if needed
-from pyxtxt import reset_ollama_config
-reset_ollama_config()
-
-# From web images
-import requests
-image_response = requests.get("https://example.com/document.png")
-text = xtxt(image_response.content)
 ```
 
-### AI OCR Confidence Scoring (NEW)
+**Ollama** (`pip install "pyxtxt[ocr-ollama]"`) uses a multimodal LLM served by a local
+[Ollama](https://ollama.com) instance. Start the server and pull a model first (`ollama pull gemma3:4b`).
 
-⚠️ **IMPORTANT**: AI-powered OCR is experimental technology that may produce errors, hallucinations, or misinterpretations. Always validate results for critical applications.
+```python
+from pyxtxt import (
+    xtxt, xtxt_image_describe,
+    set_ollama_model, set_ollama_config, get_ollama_config, reset_ollama_config,
+)
 
-The OCR-Ollama system includes confidence scoring to help identify unreliable results:
+set_ollama_model("gemma3:12b")   # default: gemma3:4b; also llava:7b, llava:13b, gemma3:27b
+
+set_ollama_config(
+    language="italian",       # language hint
+    caption_length="long",    # short, medium, long
+    style="detailed",         # descriptive, technical, simple, detailed
+    context="document",       # general, document, handwriting, technical, cookbook, ...
+    temperature=0.2,
+    max_tokens=2000,
+    auto_fallback=False,      # by default other models are tried when the result looks poor
+)
+
+text = xtxt("complex_document.png")                   # text only
+analysis = xtxt_image_describe("scientific_diagram.png")
+# TEXT: ...
+# DESCRIPTION: ...
+
+print(get_ollama_config())
+reset_ollama_config()
+```
+
+#### Confidence score
 
 ```python
 from pyxtxt import xtxt_image_with_confidence, set_ollama_config
 
-# Configure confidence threshold (0.0-1.0, default: 0.7)
-set_ollama_config(confidence_threshold=0.8)  # More restrictive
-
-# Get text with confidence score
+set_ollama_config(confidence_threshold=0.8)
 text, confidence = xtxt_image_with_confidence("document.png", mode="ocr")
-print(f"Confidence: {confidence:.2f} ({confidence*100:.1f}%)")
-print(f"Text: {text}")
-
-# Check if reliable
-if confidence < 0.7:
-    print("⚠️ Low confidence - result may be unreliable")
-    print("Consider using traditional OCR or manual verification")
-else:
-    print("✅ Good confidence - result likely reliable")
 ```
 
-#### Confidence Scoring Features
+The score is a **heuristic** computed on the model's answer: it rewards structured text (numbers, punctuation) and
+penalises vague language and typical hallucination keywords (e.g. "ancient", "papyrus", "painting", "dragon").
+It is not a calibrated probability. In OCR mode, results below `confidence_threshold` (default 0.7) are discarded
+and an empty string is returned.
 
-- **Hallucination Detection**: Penalizes historical/cultural references that often indicate AI misinterpretation
-- **Pattern Recognition**: Rewards structured text (numbers, punctuation, proper formatting)
-- **Uncertainty Detection**: Flags vague language ("appears to be", "seems like", etc.)
-- **Quality Assessment**: Considers content length, repetition, and coherence
+### EXIF metadata
 
-#### Common Hallucination Patterns (Automatically Detected)
-- **Historical Content**: "ancient", "medieval", "Egyptian papyrus", "hieroglyphs"
-- **Artistic Interpretations**: "painting", "artwork", "masterpiece", "Renaissance"  
-- **Fantasy Content**: "mystical", "magical", "dragon", "wizard"
-- **Scientific Misinterpretation**: "fossil", "geological formation", "crystal structure"
-- **Vague Language**: "unclear", "difficult to read", "appears to be"
-
-### Command-Line OCR Example
-
-A complete example script for command-line usage is available:
+Requires Pillow (installed by the `ocr` or `ocr-ollama` extras, or `pip install pillow`).
 
 ```python
-# Download and run the example script
-import requests
+from pyxtxt import xtxt_exif
 
-example_url = "https://raw.githubusercontent.com/yourusername/pyxtxt/main/ocr_example.py"
-with open("ocr_example.py", "wb") as f:
-    f.write(requests.get(example_url).content)
-
-# Usage examples:
-# python ocr_example.py document.png
-# python ocr_example.py chart.jpg --mode=describe --lang=italian --style=detailed
-# python ocr_example.py diagram.png --mode=describe --length=long --temp=0.3
-
-# NEW: Confidence scoring examples
-# python ocr_example.py suspicious.png --show-confidence
-# python ocr_example.py medical.png --confidence=0.9 --show-confidence
-# python ocr_example.py diagram.png --confidence=0.5 --mode=describe --show-confidence
+print(xtxt_exif("vacation_photo.jpg"))
+# Camera make/model, shooting settings, date/time, GPS coordinates, image size...
 ```
 
-The script supports:
-- **OCR mode**: Extract only text from images
-- **Describe mode**: Extract text + generate detailed captions
-- **Language hints**: Specify caption language (italian, english, etc.)
-- **Style control**: descriptive, technical, simple, detailed
-- **Length control**: short, medium, long captions
-- **Temperature**: Adjust LLM creativity (0.0-1.0)
-- **Confidence scoring**: Set threshold and display confidence scores
-- **Quality filtering**: Automatically reject low-confidence results
+### More examples
 
-### Show Available Formats
-```python
-from pyxtxt import extxt_available_formats
+An examples script is installed with the package:
 
-# List supported MIME types
-formats = extxt_available_formats()
-print(formats)
-
-# Pretty format names
-formats = extxt_available_formats(pretty=True)
-print(formats)
+```bash
+python -m pyxtxt.examples
 ```
-## 🌐 Common Web Use Cases
+
+or, to read its source:
 
 ```python
-# API responses
-api_response = requests.post("https://api.example.com/generate-pdf")
-text = xtxt(api_response.content)
-
-# File uploads (Flask/Django)
-uploaded_bytes = request.files['document'].read()
-text = xtxt(uploaded_bytes)
-
-# Audio/video transcription services
-audio_response = requests.get("https://api.example.com/recording.mp3")
-transcript = xtxt(audio_response.content)
-
-# Video transcription from API
-video_response = requests.get("https://api.example.com/meeting.mp4")
-transcript = xtxt(video_response.content)
-
-# OCR for uploaded images
-image_bytes = request.files['receipt'].read()
-text = xtxt(image_bytes)
-
-# Email attachments
-attachment_bytes = email_msg.get_payload(decode=True)
-text = xtxt(attachment_bytes)
+from importlib.resources import files
+print((files("pyxtxt") / "examples.py").read_text())
 ```
 
-## ⚠️ Known Limitations
+---
 
-### General Limitations
-- **Legacy file detection**: When using raw streams without filenames, legacy files (.doc, .xls, .ppt) may not be correctly detected due to identical file signatures in libmagic
-- **Filename hints recommended**: When available, providing original filenames improves detection accuracy
-- **MSWrite .doc files**: Require `antiword` installation:
-  ```bash
-  sudo apt-get update && sudo apt-get install antiword
-  ```
+## ⚠️ Known limitations
 
-### 🤖 AI-Powered Features - Important Warnings
+- **Supported inputs**: file paths, `io.BytesIO`, `bytes` and `requests.Response`. A file object returned by
+  `open()` must be read first (`xtxt(f.read())`).
+- **Type detection without a file name**: libmagic cannot tell apart some formats from raw bytes (legacy Office files
+  share the same signature; Markdown looks like plain text). Pass a file path, or set `buffer.name`, when possible.
+- **Legacy PowerPoint (`.ppt`)** is not supported.
+- **DOCX**: text inside tables, headers and footers is not extracted yet. **SVG**: text inside `<tspan>` elements is not extracted yet.
+- Errors are reported with messages printed to standard output and the functions return `None` or an empty string;
+  they do not raise exceptions.
 
-**⚠️ EXPERIMENTAL TECHNOLOGY**: AI-powered features (OCR-Ollama, audio transcription) are based on machine learning models and may produce:
+### 🤖 AI-powered features
 
-#### Potential Issues:
-- **Hallucinations**: AI may "see" or "hear" content that isn't actually present
-- **Misinterpretations**: Complex images may be incorrectly identified (e.g., X-ray images mistaken for historical artifacts)
-- **Language Errors**: Transcription accuracy depends on audio quality, accents, and background noise
-- **Context Confusion**: AI may apply inappropriate cultural/historical context to technical content
-- **Model Dependence**: Results vary significantly between different AI models (gemma3, llava, whisper versions)
-- **Bias and Inconsistency**: Models may exhibit cultural, linguistic, or domain-specific biases
+OCR through Ollama and Whisper transcription rely on machine-learning models and can produce **hallucinations**
+(text or content that is not there), misinterpretations and language errors. Results vary between models and versions.
 
-#### Critical Applications Warning:
-**🚨 DO NOT USE for critical applications** such as:
-- Medical diagnosis or medical image interpretation
-- Legal document analysis requiring perfect accuracy  
-- Financial data extraction where errors have monetary impact
-- Security/safety systems where false positives/negatives are dangerous
-- Academic research requiring citation-quality accuracy
+**Do not use them for critical applications** — medical diagnosis or medical image interpretation, legal or financial
+documents where errors matter, safety systems — without human verification. Validate the results against the source,
+use the confidence score as a hint only, and keep a traditional OCR (EasyOCR) as a cross-check when accuracy matters.
 
-#### Best Practices:
-- **Always validate AI results** against source material when accuracy matters
-- **Use confidence scoring** to identify potentially unreliable results
-- **Cross-reference** with traditional OCR/transcription tools for important content
-- **Human review** recommended for any production use case
-- **Test thoroughly** with your specific content types and use cases
-- **Fallback options**: Keep traditional OCR (EasyOCR) available as backup
+---
 
-#### Recommended Use Cases:
-✅ Content discovery and initial text extraction  
-✅ Batch processing of low-stakes content  
-✅ Development and prototyping workflows  
-✅ Personal document organization  
-✅ Educational and learning projects
+## 🛠 Development
 
-## 📖 Full Examples
-
-### Accessing Examples After Installation
-After installing PyxTxt from PyPI, you can access comprehensive usage examples including local file processing, memory buffer handling, web content extraction, error handling patterns, and all supported formats demonstration:
-
-```python
-import pkg_resources
-
-# Get path to examples file
-examples_path = pkg_resources.resource_filename('pyxtxt', 'examples.py')
-print(f"Examples file location: {examples_path}")
-
-# Run the examples directly
-exec(open(examples_path).read())
-
-# Or read the content to view examples
-examples_content = pkg_resources.resource_string('pyxtxt', 'examples.py').decode('utf-8')
-print(examples_content)
+```bash
+git clone https://github.com/GiuseppeLeviBo/pyxtxt
+cd pyxtxt
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[pdf,docx,presentation,spreadsheet,odf,html,markdown,epub,rtf,email,latex]" pytest
+pytest
 ```
+
+Tests for formats whose libraries are not installed are skipped. CI runs the test suite on Python 3.10–3.13.
+
+### Releasing
+
+Releases are published to PyPI by GitHub Actions (`.github/workflows/publish.yml`) through
+[Trusted Publishing](https://docs.pypi.org/trusted-publishers/), so no API token is needed:
+
+1. Update `version` in `pyproject.toml` and the changelog below; merge to `main`.
+2. Tag and push: `git tag v0.3.6 && git push origin v0.3.6`.
+
+The workflow checks that the tag matches the version, builds sdist and wheel, and uploads them.
+
+One-time setup: on PyPI, open the project's *Settings → Publishing* and add a
+GitHub publisher with owner `GiuseppeLeviBo`, repository `pyxtxt`, workflow `publish.yml` and environment `pypi`.
+
+---
 
 ## 🔒 License
 
-Distributed under the MIT License. See LICENSE file for details.
-
-The software is provided "as is" without any warranty of any kind.
+Distributed under the MIT License. See [LICENSE](LICENSE).
 
 ## 🤝 Contributing
 
-Pull requests, issues, and feedback are warmly welcome! 🚀
+Pull requests, issues and feedback are welcome.
 
-- **Bug reports**: Please include file samples and error details
-- **Feature requests**: Describe your use case and expected behavior
-- **Code contributions**: Follow existing patterns and add tests
+- **Bug reports**: include a sample file (or how to create one) and the full error message
+- **Feature requests**: describe your use case and the expected behaviour
+- **Code**: follow the existing patterns and add a test in `tests/`
+
+---
 
 ## 📊 Changelog
 
-### v0.2.5 (Current Development)
-- ✅ **NEW**: AI-powered OCR with Ollama LLM integration
-- ✅ **NEW**: Advanced caption generation with configurable parameters
-- ✅ **NEW**: `set_ollama_config()` for fine-tuning LLM behavior
-- ✅ **NEW**: Language hints, style control (descriptive/technical/simple/detailed)
-- ✅ **NEW**: Caption length control (short/medium/long)
-- ✅ **NEW**: Temperature and token limit configuration
-- ✅ **NEW**: Command-line OCR example script with full parameter support
-- ✅ **NEW**: **Confidence Scoring System** - Advanced AI hallucination detection
-- ✅ **NEW**: `xtxt_image_with_confidence()` - Returns text + confidence score
-- ✅ **NEW**: Automatic rejection of low-confidence results with configurable thresholds
-- ✅ **NEW**: 60+ hallucination patterns detected (historical, artistic, fantasy, scientific)
-- ✅ **NEW**: `--show-confidence` and `--confidence` CLI parameters
-- ✅ **ENHANCED**: OCR-Ollama mode with both text extraction and image description
-- ✅ **ENHANCED**: Comprehensive AI safety warnings and best practices documentation
-- ✅ Support for gemma3:4b, gemma3:12b, gemma3:27b, llava:7b, llava:13b models
+### v0.3.6
+- **FIXED**: `import pyxtxt` crashed with `AttributeError` unless both `ollama` and Pillow were installed (regression in 0.3.4.2 and 0.3.5)
+- **FIXED**: Markdown, RTF and LaTeX files were returned as raw source instead of being converted to text
+- **FIXED**: a failed extraction (e.g. a corrupted PDF) returned the string `"None"` instead of `None`
+- **FIXED**: XLSX and XLS files were silently truncated to 200 and 100 rows per sheet; all rows are now extracted
+  (`max_rows_per_sheet` is still available when calling the extractors directly)
+- **FIXED**: when both EasyOCR and Ollama were installed, the OCR back-end used for images was random; Ollama now always takes precedence
+- **FIXED**: a single extractor failing to load no longer prevents the whole package from importing
+- **FIXED**: `BytesIO` buffers keep their `name`, which is now used to refine type detection
+- PyMuPDF is imported as `pymupdf`, removing the deprecation warning printed at every import
+- Added the missing `LICENSE` file, SPDX license metadata and project URLs
+- Removed the obsolete `pyxtxt/pyxtxt.py` module
+- Added a test suite and GitHub Actions workflows for CI and PyPI publishing
 
-### v0.2.4 
-- ✅ **NEW**: Video transcription support (MP4, MOV, AVI, WebM, MKV)
-- ✅ **ENHANCED**: Audio transcription now supports video files
-- ✅ Whisper automatically extracts audio track from videos
-- ✅ Unified interface for both audio and video processing
+### v0.3.0 – v0.3.5
+- **NEW**: OCR through Ollama multimodal models (`set_ollama_model`, `xtxt_image_describe`) — 0.3.0
+- **NEW**: `set_ollama_config()`, `get_ollama_config()`, `reset_ollama_config()` — 0.3.2
+- **NEW**: confidence score and hallucination detection (`xtxt_image_with_confidence`) — 0.3.4
+- **NEW**: image enhancement before OCR, automatic model fallback, context presets — 0.3.4.2
+- **NEW**: EXIF metadata extraction (`xtxt_exif`) — 0.3.5
+
+### v0.2.4
+- **NEW**: video transcription support (MP4, MOV, AVI, WebM, MKV) via Whisper
 
 ### v0.2.3
-- ✅ **NEW**: Audio transcription support (MP3, WAV, M4A, FLAC, etc.)
-- ✅ **NEW**: Traditional OCR from images (JPEG, PNG, TIFF, BMP, WebP) via EasyOCR
-- ✅ **NEW**: 6 additional format extractors: Markdown, EPUB, RTF, EML, MSG, LaTeX
-- ✅ **NEW**: Modular dependencies with `[audio]`, `[ocr]`, `[all]` installation groups
-- ✅ Performance optimizations with model caching for heavy operations
-- ✅ Improved multilingual OCR support with automatic language detection
+- **NEW**: audio transcription (MP3, WAV, M4A, FLAC, ...) with Whisper
+- **NEW**: OCR from images (JPEG, PNG, TIFF, BMP, WebP) with EasyOCR
+- **NEW**: `audio`, `ocr` and `all` installation extras
 
-### v0.2.0-0.2.2
-- ✅ **MAJOR**: Architectural improvements with automatic extractor registration
-- ✅ **NEW**: 6 format extractors added in single session (md, epub, rtf, eml, msg, tex)
-- ✅ **FIXED**: Critical memory management issues in MSG extractor
-- ✅ **FIXED**: Documentation links and path references
-- ✅ **ENHANCED**: Error handling with graceful degradation for missing dependencies
-- ✅ Comprehensive testing across all newly supported formats
+### v0.2.0 – v0.2.2
+- **NEW**: automatic extractor registration
+- **NEW**: Markdown, EPUB, RTF, EML, MSG and LaTeX extractors
 
 ### v0.1.24
-- ✅ **NEW**: Support for raw `bytes` objects (web downloads, API responses)
-- ✅ **NEW**: Support for `requests.Response` objects (direct HTTP processing)
-- ✅ **NEW**: `xtxt_from_url()` helper function for direct URL processing
-- ✅ **ENHANCED**: Web-ready architecture for modern applications
-- ✅ **FIXED**: Type hints and Optional[str] return types throughout codebase
-- ✅ **FIXED**: Critical bug in xlsx.py:46 (indentation error)
-- ✅ **REMOVED**: Debug print statements from production code
+- **NEW**: support for `bytes` and `requests.Response` inputs, `xtxt_from_url()` helper
 
-### v0.1.0-0.1.23
-- ✅ **CORE**: Initial release with modular extractor architecture
-- ✅ **CORE**: Support for PDF, DOCX, PPTX, XLSX, ODT, HTML, XML, TXT formats
-- ✅ **CORE**: Legacy Office support (.doc, .xls, .ppt) with graceful handling
-- ✅ **CORE**: MIME type detection with python-magic
-- ✅ **CORE**: BytesIO buffer support for memory-efficient processing
-- ✅ **CORE**: Single dispatch pattern for type-based routing
-- ✅ **CORE**: Automatic dependency management with optional installs
-- ✅ **CORE**: Published to PyPI with proper package structure
+### v0.1.0 – v0.1.23
+- Initial releases: modular extractors for PDF, DOCX, PPTX, XLSX, ODT, HTML, XML, TXT and legacy Office files,
+  MIME detection with python-magic, `BytesIO` support

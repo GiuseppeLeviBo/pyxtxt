@@ -1,4 +1,5 @@
 import io
+from typing import Optional
 from . import register_extractor
 try:
     import xlrd
@@ -7,7 +8,8 @@ except ImportError:
 
 if xlrd:
 
- def xtxt_xls(file_buffer, max_rows_per_sheet: int = 100) -> str:
+ def xtxt_xls(file_buffer, max_rows_per_sheet: Optional[int] = None) -> str:
+    # max_rows_per_sheet: None or a negative value means no limit
     try:
         file_buffer.seek(0)
         workbook = xlrd.open_workbook(file_contents=file_buffer.read())
@@ -15,7 +17,10 @@ if xlrd:
 
         for sheet in workbook.sheets():
             testo.append(f"# {sheet.name}")
-            for row_idx in range(min(sheet.nrows, max_rows_per_sheet)):
+            nrows = sheet.nrows
+            if max_rows_per_sheet is not None and max_rows_per_sheet >= 0:
+                nrows = min(nrows, max_rows_per_sheet)
+            for row_idx in range(nrows):
                 row = sheet.row(row_idx)
                 valori = [str(cell.value).strip() for cell in row if str(cell.value).strip()]
                 if valori:

@@ -1,8 +1,11 @@
 from . import register_extractor
 try:
-    import fitz  # PyMuPDF
+    import pymupdf as fitz  # PyMuPDF >= 1.24.3
 except ImportError:
-    fitz = None
+    try:
+        import fitz  # older PyMuPDF; the `fitz` name is deprecated
+    except ImportError:
+        fitz = None
 
 if fitz:
  def xtxt_pdf(file_buffer):

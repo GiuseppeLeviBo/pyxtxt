@@ -13,8 +13,6 @@ if rtf_to_text:
 
         return rtf_to_text(content)
 
-    register_extractor(
-        "application/rtf",
-        xtxt_rtf,
-        name="RTF"
-    )
+    # libmagic reports RTF as text/rtf
+    for mime_type in ("application/rtf", "text/rtf"):
+        register_extractor(mime_type, xtxt_rtf, name="RTF")
