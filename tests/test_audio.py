@@ -62,5 +62,5 @@ def test_wav_is_transcribed_and_temp_file_removed(tmp_path):
 
 def test_temp_file_removed_when_transcription_fails(tmp_path):
     stdout, temp_path = _run(tmp_path, fail=True)
-    assert "''" in stdout
+    assert stdout.strip() == "None"  # a failure, not an empty transcription
     assert not __import__("os").path.exists(temp_path)

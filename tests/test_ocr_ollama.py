@@ -67,3 +67,36 @@ def test_hallucination_keywords_match_whole_words():
     neutral = score("The science section lists 12 titles.", "ocr")
     assert score("The romance section lists 12 titles.", "ocr") == neutral
     assert score("An Egyptian papyrus with 12 lines.", "ocr") < score("An ordinary receipt with 12 lines.", "ocr")
+
+
+def test_xtxt_reports_unreachable_server_as_failure(monkeypatch):
+    from pyxtxt import ExtractionError, xtxt
+
+    def unreachable(**kwargs):
+        raise ConnectionError("Failed to connect to Ollama")
+
+    monkeypatch.setattr(ocr_ollama.ollama, "generate", unreachable)
+    assert xtxt(_png_bytes()) is None
+    with pytest.raises(ExtractionError) as excinfo:
+        xtxt(_png_bytes(), raise_errors=True)
+    assert isinstance(excinfo.value.__cause__, ConnectionError)
+
+
+def test_public_helpers_keep_returning_empty_results_on_errors(monkeypatch):
+    def unreachable(**kwargs):
+        raise ConnectionError("Failed to connect to Ollama")
+
+    monkeypatch.setattr(ocr_ollama.ollama, "generate", unreachable)
+    assert ocr_ollama.xtxt_image_describe(io.BytesIO(_png_bytes())) == ""
+    assert ocr_ollama.xtxt_image_with_confidence(io.BytesIO(_png_bytes())) == ("", 0.0)
+
+
+def test_all_models_failing_is_an_error_for_xtxt(monkeypatch):
+    from pyxtxt import ExtractionError, xtxt
+
+    def model_missing(**kwargs):
+        raise ocr_ollama.ollama.ResponseError(f"model '{kwargs['model']}' not found")
+
+    monkeypatch.setattr(ocr_ollama.ollama, "generate", model_missing)
+    with pytest.raises(ExtractionError, match="No Ollama model could process the image"):
+        xtxt(_png_bytes(), raise_errors=True)

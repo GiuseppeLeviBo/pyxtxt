@@ -8,7 +8,7 @@ from different file types and data streams.
 """
 
 import io
-from pyxtxt import xtxt, extxt_available_formats, xtxt_from_url
+from pyxtxt import xtxt, xtxt_available_formats, xtxt_from_url
 
 def example_basic():
     """Example 1: Extraction from local file"""
@@ -115,12 +115,12 @@ def example_supported_formats():
     print("\n=== EXAMPLE 6: Supported formats ====")
     
     print("Supported MIME types:")
-    formats = extxt_available_formats()
+    formats = xtxt_available_formats()
     for fmt in formats:
         print(f"  - {fmt}")
     
     print("\nPretty format names:")
-    pretty_formats = extxt_available_formats(pretty=True)
+    pretty_formats = xtxt_available_formats(pretty=True)
     for fmt in pretty_formats:
         print(f"  - {fmt}")
 

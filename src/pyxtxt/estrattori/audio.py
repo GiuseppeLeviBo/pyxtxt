@@ -34,9 +34,6 @@ if whisper:
             )
             return result["text"].strip()
 
-        except Exception as e:
-            print(f"⚠️ Error while extracting audio with Whisper: {e}")
-            return ""
         finally:
             if temp_path is not None:
                 os.unlink(temp_path)

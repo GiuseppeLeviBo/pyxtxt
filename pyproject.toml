@@ -1,6 +1,6 @@
 [project]
 name = "pyxtxt"
-version = "0.3.8"
+version = "0.3.9"
 description = "A Python library for extracting text from different types of files (PDF, DOCX, PPTX, XLSX, ODT, etc.)."
 classifiers = [
   "Development Status :: 4 - Beta",

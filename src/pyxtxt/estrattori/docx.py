@@ -46,27 +46,20 @@ if Document:
         return lines
 
     def xtxt_docx(file_buffer) -> str:
-        try:
-            # Copia del buffer per poterlo riutilizzare
-            file_buffer.seek(0)
-            data = file_buffer.read()
-            buffer_copy = io.BytesIO(data)
+        # Copia del buffer per poterlo riutilizzare
+        file_buffer.seek(0)
+        buffer_copy = io.BytesIO(file_buffer.read())
 
-            if not zipfile.is_zipfile(buffer_copy):
-                print("⚠️ Invalid DOCX (not a ZIP file)")
-                return ""
+        if not zipfile.is_zipfile(buffer_copy):
+            raise ValueError("Invalid DOCX (not a ZIP file)")
 
-            buffer_copy.seek(0)
-            doc = Document(buffer_copy)
+        buffer_copy.seek(0)
+        doc = Document(buffer_copy)
 
-            headers = _header_footer_lines(doc, ("first_page_header", "header", "even_page_header"))
-            body = list(_block_lines(doc, doc.element.body))
-            footers = _header_footer_lines(doc, ("first_page_footer", "footer", "even_page_footer"))
-            return "\n".join(headers + body + footers)
-
-        except Exception as e:
-            print(f"⚠️  Error during extraction DOCX: {e}")
-            return ""
+        headers = _header_footer_lines(doc, ("first_page_header", "header", "even_page_header"))
+        body = list(_block_lines(doc, doc.element.body))
+        footers = _header_footer_lines(doc, ("first_page_footer", "footer", "even_page_footer"))
+        return "\n".join(headers + body + footers)
 
     register_extractor(
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
