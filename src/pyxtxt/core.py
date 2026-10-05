@@ -1,10 +1,35 @@
 from functools import singledispatch
 import io
+import os
 from typing import Optional
 
 import magic
 
 from .estrattori import estrattori
+
+# libmagic reports some text formats (e.g. Markdown) as plain text: the file
+# extension, when known, refines the detection.
+_TEXT_EXTENSION_HINTS = {
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
+    ".tex": "text/x-tex",
+    ".rtf": "text/rtf",
+}
+
+
+def _resolve_mime_type(mime_type: str, name: Optional[str]) -> str:
+    """Refine the detected MIME type and map unknown text types to text/plain."""
+    if mime_type == "text/plain" and name:
+        extension = os.path.splitext(name)[1].lower()
+        hinted = _TEXT_EXTENSION_HINTS.get(extension)
+        if hinted in estrattori:
+            mime_type = hinted
+
+    if mime_type.startswith("text/") and mime_type not in estrattori:
+        print(f"📄 File recognized as text type: {mime_type}, treated as text/plain")
+        mime_type = "text/plain"
+
+    return mime_type
 
 
 @singledispatch
@@ -34,20 +59,19 @@ def _(file_input: io.BytesIO) -> Optional[str]:
         if hasattr(file_input, "mimeType"):
             mime_type = file_input.mimeType
         else:
-            mime_type = magic.Magic(mime=True).from_buffer(file_input.read(2048))
-            file_input.name = "IO_buffer"
             file_input.seek(0)
+            mime_type = magic.Magic(mime=True).from_buffer(file_input.read(2048))
+            file_input.seek(0)
+        if not getattr(file_input, "name", None):
+            file_input.name = "IO_buffer"
 
-        if mime_type.startswith("text/"):
-            if mime_type not in {"text/html", "text/xml", "text/plain"}:
-                print(f"📄 File recognized as text type: {mime_type}, treated as text/plain")
-                mime_type = "text/plain"
+        mime_type = _resolve_mime_type(mime_type, file_input.name)
 
         if mime_type not in estrattori:
             print(f"⚠️ MIME type not supported {mime_type} ({file_input.name}) ignored.")
             return None
 
-        return f"{estrattori[mime_type](file_input)}"
+        return estrattori[mime_type](file_input)
     except Exception as e:
         print(f"❌ Error while reading: {e}")
         return None

@@ -1,6 +1,7 @@
 from . import register_extractor
 import io
 import zipfile
+from typing import Optional
 try:
     from openpyxl import load_workbook
     from openpyxl.worksheet.worksheet import Worksheet
@@ -10,7 +11,8 @@ except ImportError:
 
 if openpyxl:
 
- def xtxt_xlsx(file_buffer, max_rows_per_sheet: int = 200) -> str:
+ def xtxt_xlsx(file_buffer, max_rows_per_sheet: Optional[int] = None) -> str:
+    # max_rows_per_sheet: None or a negative value means no limit
     try:
         file_buffer.seek(0)
         data = file_buffer.read()
@@ -33,7 +35,7 @@ if openpyxl:
         testo.append(f"# {sheet.title}")
         count = 0
         for row in sheet.iter_rows(values_only=True):
-            if max_rows_per_sheet != -1 and count >= max_rows_per_sheet:
+            if max_rows_per_sheet is not None and 0 <= max_rows_per_sheet <= count:
                 break
             valori = [str(cell).strip() if cell is not None else "" for cell in row]
             if any(valori):

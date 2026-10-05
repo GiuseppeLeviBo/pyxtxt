@@ -14,8 +14,6 @@ if LatexNodes2Text:
         text = LatexNodes2Text().latex_to_text(content)
         return text.strip()
 
-    register_extractor(
-        "application/x-tex",
-        xtxt_tex,
-        name="LaTeX"
-    )
+    # libmagic reports LaTeX sources as text/x-tex
+    for mime_type in ("application/x-tex", "text/x-tex"):
+        register_extractor(mime_type, xtxt_tex, name="LaTeX")

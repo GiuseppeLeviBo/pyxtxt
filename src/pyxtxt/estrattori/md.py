@@ -20,8 +20,5 @@ if markdown:
         soup = BeautifulSoup(html, "html.parser")
         return soup.get_text(separator="\n")
 
-    register_extractor(
-        "text/markdown",
-        xtxt_md,
-        name="Markdown"
-    )
+    for mime_type in ("text/markdown", "text/x-markdown"):
+        register_extractor(mime_type, xtxt_md, name="Markdown")
